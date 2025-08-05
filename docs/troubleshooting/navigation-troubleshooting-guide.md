@@ -1,5 +1,40 @@
 # React Native Navigation Troubleshooting Guide
 
+## 🚨 CRITICAL: VS Code Deno Language Server Conflicts
+
+**Issue**: "Client Deno Language Server: connection to server is erroring", EPIPE errors  
+**Priority**: HIGHEST - Fix this FIRST before any development  
+**Status**: ✅ **PREVENTION DOCUMENTED**
+
+### Problem Description
+Deno language server conflicts with React Native TypeScript configuration, causing:
+- TypeScript IntelliSense failures  
+- "connection to server is erroring" messages  
+- EPIPE (Broken Pipe) errors  
+- Development environment instability  
+
+### Solution (MANDATORY)
+Create `.vscode/settings.json` BEFORE opening project:
+
+```json
+{
+  "deno.enable": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.workingDirectories": ["./"]
+}
+```
+
+**Verification**: No Deno error messages in VS Code output panel.
+
+---
+
+## Navigation Component Implementation Issues
+
 **Issue**: Unimplemented component errors for RNSScreenNavigation and
 RNCSafeAreaProvider\
 **Date**: August 5, 2025\

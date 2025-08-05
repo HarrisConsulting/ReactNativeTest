@@ -16,15 +16,30 @@ node --version && npm --version && git --version
 npx react-native@latest init YourProject --template react-native-template-typescript
 cd YourProject
 
-# 3. Initial Validation
+# 3. Configure Development Environment (CRITICAL)
+mkdir -p .vscode
+cat > .vscode/settings.json << 'EOF'
+{
+  "deno.enable": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.workingDirectories": ["./"]
+}
+EOF
+
+# 4. Initial Validation
 npm run lint && npm run typecheck
 
-# 4. Git Setup
-git add . && git commit -m "feat: Initial React Native project"
+# 5. Git Setup
+git add . && git commit -m "feat: Initial React Native project with dev environment"
 gh repo create YourProject --public --source=. --push
 ```
 
-**✅ Checkpoint**: Project compiles and is in GitHub
+**✅ Checkpoint**: Project compiles, dev environment configured, and is in GitHub
 
 ---
 
@@ -126,15 +141,30 @@ gh run list --limit 1 # Successful CI
 
 ---
 
-## 🚨 Critical Success Factors
+## 🚨 Critical Prevention (DO FIRST)
 
-### **Must Use (Prevents All Known Issues)**
+Before opening any React Native project in VS Code:
 
-- [ ] `--ignore-scripts` in all CI npm commands
-- [ ] `StyleSheet.create()` instead of inline styles
-- [ ] `/* eslint-env jest */` in jest.setup.js
-- [ ] Components defined outside render functions
-- [ ] transformIgnorePatterns for React Navigation
+```bash
+# REQUIRED: Create .vscode/settings.json to prevent Deno conflicts
+mkdir -p .vscode
+cat > .vscode/settings.json << 'EOF'
+{
+  "deno.enable": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.workingDirectories": ["./"]
+}
+EOF
+```
+
+**Why**: Prevents "Deno Language Server: connection to server is erroring" and EPIPE errors that break TypeScript support.
+
+---
 
 ### **Order Matters**
 

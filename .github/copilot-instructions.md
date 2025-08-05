@@ -21,6 +21,25 @@ When working on React Native projects, GitHub Copilot must:
 
 ## 🚨 **CRITICAL SUCCESS PATTERNS**
 
+### **Development Environment Setup (MANDATORY)**
+
+```json
+// ✅ REQUIRED: Create .vscode/settings.json to disable Deno conflicts
+{
+  "deno.enable": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.workingDirectories": ["./"]
+}
+
+// ❌ NEVER: Allow Deno language server for React Native projects
+// Causes: "Client Deno Language Server: connection to server is erroring"
+```
+
 ### **Code Quality Patterns (MANDATORY)**
 
 ```typescript
@@ -149,32 +168,38 @@ jest.mock('@react-navigation/bottom-tabs', () => ({
 
 ## 🚨 **CRITICAL ISSUE PREVENTION**
 
-### **Issue #1: CI Pipeline Immediate Failure**
+### **Issue #1: Deno Language Server Conflicts**
+- **Symptoms**: "Client Deno Language Server: connection to server is erroring", EPIPE errors
+- **Prevention**: Create .vscode/settings.json with `"deno.enable": false` BEFORE opening project
+- **Root Cause**: Deno extension conflicts with React Native TypeScript configuration
+- **Never**: Allow Deno language server to run on React Native projects
+
+### **Issue #2: CI Pipeline Immediate Failure**
 - **Symptoms**: Pipeline fails in <10 seconds with YAML errors
 - **Prevention**: Use exact YAML structure from `.github/workflows/ci-cd.yml`
 - **Never**: Create duplicate job names or malformed YAML syntax
 
-### **Issue #2: npm ci CocoaPods Failures**
+### **Issue #3: npm ci CocoaPods Failures**
 - **Symptoms**: "pod: command not found" on Ubuntu runners
 - **Prevention**: Always use `npm ci --ignore-scripts` in CI environments
 - **Never**: Run `npm ci` without `--ignore-scripts` flag in GitHub Actions
 
-### **Issue #3: Jest ES Module Errors**
+### **Issue #4: Jest ES Module Errors**
 - **Symptoms**: "Unexpected token 'export'" in React Navigation tests
 - **Prevention**: Configure `transformIgnorePatterns` for all React Navigation packages
 - **Never**: Skip transformIgnorePatterns configuration
 
-### **Issue #4: ESLint Jest Environment Errors**
+### **Issue #5: ESLint Jest Environment Errors**
 - **Symptoms**: "'jest' is not defined" ESLint errors
 - **Prevention**: Add `/* eslint-env jest */` comment to jest.setup.js
 - **Never**: Ignore ESLint environment declarations
 
-### **Issue #5: React Component Lint Warnings**
+### **Issue #6: React Component Lint Warnings**
 - **Symptoms**: react/no-unstable-nested-components, react-native/no-inline-styles
 - **Prevention**: Use StyleSheet.create() and define components outside render
 - **Never**: Use inline styles or define components during render
 
-### **Issue #6: Duplicate CI/CD Workflow Conflicts**
+### **Issue #7: Duplicate CI/CD Workflow Conflicts**
 - **Symptoms**: Same commit triggers multiple workflow runs, some fail while others succeed
 - **Prevention**: Ensure only ONE workflow file with unique names in `.github/workflows/`
 - **Root Cause**: Multiple workflow files with identical `name:` fields cause conflicts
@@ -451,6 +476,7 @@ const showProjectStats = () => {
 
 | Issue Symptom | Immediate Action |
 |---------------|------------------|
+| Deno language server errors | Create .vscode/settings.json with `"deno.enable": false` |
 | CI fails at 0 seconds | Check YAML syntax with `yamllint .github/workflows/ci-cd.yml` |
 | "pod: not found" error | Ensure `npm ci --ignore-scripts` is used |
 | Jest ES module errors | Verify transformIgnorePatterns includes React Navigation |

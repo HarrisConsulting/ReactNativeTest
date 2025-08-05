@@ -75,9 +75,26 @@ chmod +x start-metro.sh
 npm pkg set scripts.start-safe="./start-metro.sh"
 npm pkg set scripts.test-bundle="curl -s 'http://localhost:8081/index.bundle?platform=ios' | head -2"
 
-# Phase 3: Install dependencies
+# Phase 3: Configure development environment
 echo ""
-echo "📦 Phase 3: Installing dependencies..."
+echo "⚙️ Phase 3: Configuring development environment..."
+mkdir -p .vscode
+cat > .vscode/settings.json << 'EOF'
+{
+  "deno.enable": false,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "eslint.workingDirectories": ["./"]
+}
+EOF
+
+# Phase 4: Install dependencies
+echo ""
+echo "📦 Phase 4: Installing dependencies..."
 npm install
 npm install @react-navigation/native @react-navigation/bottom-tabs react-native-screens react-native-safe-area-context react-native-gesture-handler
 
@@ -88,9 +105,9 @@ cd ios
 pod install
 cd ..
 
-# Phase 4: Create navigation structure
+# Phase 5: Create navigation structure
 echo ""
-echo "🧭 Phase 4: Creating navigation structure..."
+echo "🧭 Phase 5: Creating navigation structure..."
 mkdir -p src/navigation
 mkdir -p src/screens
 
@@ -642,9 +659,9 @@ EOF
 sed -i '' "s/APP_NAME_PLACEHOLDER/$APP_NAME/g" src/screens/AboutScreen.tsx
 sed -i '' "s/CREATION_DATE_PLACEHOLDER/$(date '+%B %d, %Y')/g" src/screens/AboutScreen.tsx
 
-# Phase 5: Update App.tsx
+# Phase 6: Update App.tsx
 echo ""
-echo "📱 Phase 5: Updating App.tsx..."
+echo "📱 Phase 6: Updating App.tsx..."
 cat > App.tsx << EOF
 /**
  * $APP_NAME App
@@ -672,9 +689,9 @@ function App() {
 export default App;
 EOF
 
-# Phase 5b: Update index.js for proper navigation setup
+# Phase 6b: Update index.js for proper navigation setup
 echo ""
-echo "🔧 Phase 5b: Updating index.js for navigation..."
+echo "🔧 Phase 6b: Updating index.js for navigation..."
 cat > index.js << 'EOF'
 /**
  * @format
@@ -692,9 +709,9 @@ enableScreens();
 AppRegistry.registerComponent(appName, () => App);
 EOF
 
-# Phase 6: Create documentation
+# Phase 7: Create documentation
 echo ""
-echo "📚 Phase 6: Creating documentation..."
+echo "📚 Phase 7: Creating documentation..."
 mkdir -p docs
 
 cat > docs/README.md << EOF
