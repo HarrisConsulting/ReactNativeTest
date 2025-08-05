@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 
 // Import screens
 import HomeScreen from '../screens/HomeScreen';
@@ -16,6 +16,18 @@ export type TabParamList = {
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
+
+// Define styles outside component to avoid inline styles
+const styles = StyleSheet.create({
+  tabIconFocused: {
+    fontSize: 20,
+    opacity: 1,
+  },
+  tabIconUnfocused: {
+    fontSize: 20,
+    opacity: 0.5,
+  },
+});
 
 const TabIcon = ({ focused, name }: { focused: boolean; name: string }) => {
   const getIcon = (iconName: string) => {
@@ -32,20 +44,23 @@ const TabIcon = ({ focused, name }: { focused: boolean; name: string }) => {
   };
 
   return (
-    <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>
+    <Text style={focused ? styles.tabIconFocused : styles.tabIconUnfocused}>
       {getIcon(name)}
     </Text>
   );
 };
+
+// Define the tab bar icon renderer outside the component
+const renderTabIcon = ({ focused, route }: { focused: boolean; route: any }) => (
+  <TabIcon focused={focused} name={route.name} />
+);
 
 const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} name={route.name} />
-          ),
+          tabBarIcon: ({ focused }) => renderTabIcon({ focused, route }),
           tabBarActiveTintColor: '#007AFF',
           tabBarInactiveTintColor: '#999',
           tabBarStyle: {
