@@ -76,6 +76,15 @@ npm run typecheck
 
 ## Phase 4: CI/CD (45 min) ✅
 
+**⚠️ CRITICAL: Check for duplicate workflows first**
+
+```bash
+# Remove any existing backup/duplicate workflow files
+ls -la .github/workflows/
+rm .github/workflows/*backup*.yml 2>/dev/null || true
+rm .github/workflows/*clean*.yml 2>/dev/null || true
+```
+
 **Create File:**
 
 - [ ] `.github/workflows/ci-cd.yml` (5-job pipeline)
@@ -86,6 +95,7 @@ npm run typecheck
 - [ ] Node 18.x LTS
 - [ ] Parallel job execution
 - [ ] Comprehensive summary
+- [ ] **ONLY ONE workflow file** (no duplicates)
 
 ```bash
 git add .
@@ -93,7 +103,7 @@ git commit -m "feat: Complete navigation and CI/CD pipeline"
 git push origin main
 ```
 
-**✅ Checkpoint**: 5/5 CI jobs pass in ~1-2 minutes
+**✅ Checkpoint**: 5/5 CI jobs pass in ~1-2 minutes (single workflow run)
 
 ---
 
@@ -182,6 +192,7 @@ Following this checklist produces:
 | Issue                  | Immediate Fix                              |
 | ---------------------- | ------------------------------------------ |
 | CI fails at 0 seconds  | Check YAML syntax with yamllint            |
+| Multiple workflow runs | Remove duplicate workflow files            |
 | "pod: not found" error | Use `npm ci --ignore-scripts`              |
 | Jest ES module errors  | Add transformIgnorePatterns                |
 | ESLint jest errors     | Add `/* eslint-env jest */`                |

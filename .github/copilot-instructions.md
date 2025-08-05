@@ -174,6 +174,14 @@ jest.mock('@react-navigation/bottom-tabs', () => ({
 - **Prevention**: Use StyleSheet.create() and define components outside render
 - **Never**: Use inline styles or define components during render
 
+### **Issue #6: Duplicate CI/CD Workflow Conflicts**
+- **Symptoms**: Same commit triggers multiple workflow runs, some fail while others succeed
+- **Prevention**: Ensure only ONE workflow file with unique names in `.github/workflows/`
+- **Root Cause**: Multiple workflow files with identical `name:` fields cause conflicts
+- **Detection**: Multiple runs for same commit, inconsistent success/failure pattern
+- **Solution**: Remove backup/duplicate workflow files, use unique workflow names
+- **Never**: Keep multiple workflow files with the same `name:` field active
+
 ---
 
 ## 📋 **IMPLEMENTATION WORKFLOW**
@@ -207,6 +215,9 @@ mkdir -p src/navigation src/screens
 - ✅ Create `.github/workflows/ci-cd.yml` with 5-job structure
 - ✅ Use `--ignore-scripts` flag in all npm ci commands
 - ✅ Configure proper job dependencies and parallel execution
+- ✅ **CRITICAL**: Ensure only ONE workflow file exists (remove any backup/duplicate files)
+- ✅ **CRITICAL**: Each workflow must have a unique `name:` field
+- ✅ Verify no duplicate workflow files cause conflicting runs
 
 ### **Phase 5: Documentation**
 - ✅ Update README.md with setup instructions
@@ -445,6 +456,7 @@ const showProjectStats = () => {
 | Jest ES module errors | Verify transformIgnorePatterns includes React Navigation |
 | ESLint jest errors | Add `/* eslint-env jest */` to jest.setup.js |
 | React lint warnings | Use StyleSheet.create, move components outside render |
+| Multiple workflow runs for same commit | Remove duplicate workflow files, ensure unique names |
 | Navigation TypeScript errors | Check navigation type definitions |
 | Test failures | Verify all mocks are configured in jest.setup.js |
 

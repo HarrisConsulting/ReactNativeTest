@@ -353,6 +353,23 @@ npm run typecheck             # Should pass TypeScript validation
 
 ### **Step 4.1: Create GitHub Actions Workflow**
 
+**🚨 CRITICAL WARNING: Ensure Only One Workflow File**
+
+Before creating the workflow, verify no duplicate workflow files exist:
+
+```bash
+# Check for existing workflow files
+ls -la .github/workflows/
+
+# If any backup files exist (e.g., ci-cd-backup.yml, ci-cd-clean.yml), remove them
+rm .github/workflows/*backup*.yml
+rm .github/workflows/*clean*.yml
+```
+
+**Why This Matters**: Multiple workflow files with the same `name:` field will
+cause the same commit to trigger multiple conflicting runs, leading to confusing
+success/failure patterns.
+
 **.github/workflows/ci-cd.yml**:
 
 ```yaml
@@ -595,6 +612,13 @@ mkdir docs
 
 **Cause**: YAML syntax errors **Solution**: Validate YAML with
 `yamllint .github/workflows/ci-cd.yml`
+
+### Multiple Workflow Runs for Same Commit
+
+**Cause**: Duplicate workflow files with same `name:` field **Solution**: Remove
+backup workflow files, ensure unique names **Detection**: Same commit shows both
+success and failure runs **Prevention**: Keep only ONE workflow file in
+`.github/workflows/`
 
 ### npm ci Fails with "pod: not found"
 

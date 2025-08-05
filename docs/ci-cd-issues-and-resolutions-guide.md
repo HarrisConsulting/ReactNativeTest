@@ -20,7 +20,38 @@ time.
 
 ## 🚨 **Critical Issues Encountered & Solutions**
 
-### **Issue #1: YAML Syntax Corruption in GitHub Actions**
+### **Issue #1: Duplicate CI/CD Workflows Causing Conflicting Runs**
+
+**🔍 Problem:** Multiple workflow files in `.github/workflows/` with identical
+`name:` fields caused the same commit to trigger multiple pipeline runs,
+resulting in confusing success/failure patterns.
+
+**💥 Impact:**
+
+- Same commit showing both successful and failed runs
+- Inconsistent pipeline behavior despite identical code
+- Confusion about actual pipeline status
+
+**✅ Resolution:**
+
+1. **Identified multiple workflow files** with same name field
+2. **Removed duplicate files** (`ci-cd-backup.yml`, disabled `ci-cd-clean.yml`)
+3. **Ensured single source of truth** with one active workflow file
+4. **Created comprehensive prevention guide**:
+   `ci-cd-duplicate-workflow-prevention.md`
+
+**🛠️ Prevention:**
+
+- Audit workflow files during project setup: `ls -la .github/workflows/`
+- Use unique workflow names if multiple workflows needed
+- Store backup workflows outside `.github/workflows/` directory
+
+**📚 Reference:** See detailed prevention guide at
+`docs/ci-cd-duplicate-workflow-prevention.md`
+
+---
+
+### **Issue #2: YAML Syntax Corruption in GitHub Actions**
 
 **🔍 Problem:**
 
