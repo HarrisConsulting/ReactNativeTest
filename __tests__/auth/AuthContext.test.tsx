@@ -6,7 +6,6 @@ import { Text, View } from 'react-native';
 import renderer from 'react-test-renderer';
 import { AuthProvider, useAuth } from '../../src/auth/AuthContext';
 import { AuthService } from '../../src/auth/authService';
-import type { LoginResponse, VerificationResponse } from '../../src/auth/types';
 
 // Mock AuthService
 jest.mock('../../src/auth/authService');
