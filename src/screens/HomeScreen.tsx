@@ -9,9 +9,21 @@ import {
   Platform,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useAuth } from '../auth/hooks';
+
+type TabParamList = {
+  Home: undefined;
+  Settings: undefined;
+  About: undefined;
+  Auth: { screen?: string; params?: { returnTo?: string } };
+};
+
+type HomeScreenNavigationProp = BottomTabNavigationProp<TabParamList, 'Home'>;
 
 const HomeScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
+  const { isAuthenticated, user } = useAuth();
   const [metroStatus] = useState('Running'); // Remove setMetroStatus since it's not used
   const [lastBundleCheck, setLastBundleCheck] = useState(new Date().toLocaleTimeString());
 
@@ -120,6 +132,43 @@ const HomeScreen = () => {
     );
   };
 
+  const handleAuthenticationDemo = () => {
+    const authStatus = isAuthenticated ? 'Authenticated' : 'Not Authenticated';
+    const userInfo = user ? `\n\nUser: ${user.email}\nVerified: ${user.isVerified ? 'Yes' : 'No'}` : '';
+
+    Alert.alert(
+      'Email Authentication System',
+      `Status: ${authStatus}${userInfo}\n\nFeatures:\n• Email-only authentication\n• No passwords to remember\n• Time-limited verification codes\n• Secure token-based sessions\n• Protected content access`,
+      [
+        { text: 'Go to Auth Tab', onPress: () => navigation.navigate('Auth', {}) },
+        { text: 'OK', style: 'cancel' },
+      ]
+    );
+  };
+
+  const handlePlayGameAction = () => {
+    if (isAuthenticated) {
+      // User is authenticated, go directly to game
+      navigation.navigate('Auth', { screen: 'Game' });
+    } else {
+      // User needs to authenticate first
+      Alert.alert(
+        'Authentication Required',
+        'You need to be authenticated to access the protected game. Would you like to login now?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Login',
+            onPress: () => navigation.navigate('Auth', {
+              screen: 'Login',
+              params: { returnTo: 'Game' }
+            })
+          },
+        ]
+      );
+    }
+  };
+
   const showDocFileList = () => {
     const docCategories = [
       '📁 Setup Guides (5 files)',
@@ -176,6 +225,14 @@ const HomeScreen = () => {
             <Text style={styles.featureTitle}>iOS Ready</Text>
             <Text style={styles.featureDesc}>Configured for iOS</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.featureCard}
+            onPress={handleAuthenticationDemo}>
+            <Text style={styles.featureIcon}>🔐</Text>
+            <Text style={styles.featureTitle}>Authentication</Text>
+            <Text style={styles.featureDesc}>Email-only auth system</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -190,6 +247,28 @@ const HomeScreen = () => {
           style={styles.actionButton}
           onPress={showDocumentationInfo}>
           <Text style={styles.actionButtonText}>View Documentation</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🎮 Protected Content</Text>
+        <TouchableOpacity
+          style={[styles.protectedButton, isAuthenticated ? styles.protectedButtonAuthenticated : styles.protectedButtonLocked]}
+          onPress={handlePlayGameAction}>
+          <Text style={styles.protectedButtonIcon}>
+            {isAuthenticated ? '🎮' : '🔒'}
+          </Text>
+          <View style={styles.protectedButtonContent}>
+            <Text style={[styles.protectedButtonText, isAuthenticated ? styles.protectedButtonTextAuthenticated : styles.protectedButtonTextLocked]}>
+              {isAuthenticated ? 'Play Protected Game' : 'Login to Play Game'}
+            </Text>
+            <Text style={styles.protectedButtonSubtext}>
+              {isAuthenticated
+                ? `Welcome, ${user?.email?.split('@')[0] || 'User'}!`
+                : 'Requires email authentication'
+              }
+            </Text>
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -291,6 +370,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     textAlign: 'center',
+  },
+  protectedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderWidth: 2,
+  },
+  protectedButtonAuthenticated: {
+    borderColor: '#34C759',
+    backgroundColor: '#f8fff9',
+  },
+  protectedButtonLocked: {
+    borderColor: '#FF9500',
+    backgroundColor: '#fffaf5',
+  },
+  protectedButtonIcon: {
+    fontSize: 28,
+    marginRight: 16,
+  },
+  protectedButtonContent: {
+    flex: 1,
+  },
+  protectedButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  protectedButtonTextAuthenticated: {
+    color: '#34C759',
+  },
+  protectedButtonTextLocked: {
+    color: '#FF9500',
+  },
+  protectedButtonSubtext: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 

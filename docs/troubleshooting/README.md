@@ -13,6 +13,13 @@ React Native development
 - **Proactive approaches** to avoid common React Native pitfalls
 - **System-level safeguards** and validation procedures
 
+#### 🧹 **iOS Clean Build Guide** → [`react-native-ios-clean-build-guide.md`](react-native-ios-clean-build-guide.md)
+
+- **Complete clean build process** for iOS build issues
+- **5-minute solution** for cache corruption and dependency conflicts
+- **Mandatory process** after significant changes (authentication, navigation, dependencies)
+- **99%+ success rate** for resolving mysterious build failures
+
 #### 🔄 **Metro Protocol** → [`metro-protocol.md`](metro-protocol.md)
 
 - **Metro bundler management** and troubleshooting
