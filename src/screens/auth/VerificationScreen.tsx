@@ -10,6 +10,7 @@ import {
     Platform,
     ScrollView,
     ActivityIndicator,
+    Linking,
 } from 'react-native';
 import { useAuth } from '../../auth/hooks';
 import { validateOTPCode } from '../../auth/utils';
@@ -37,7 +38,7 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
     const [isLoading, setIsLoading] = useState(false);
     const [codeError, setCodeError] = useState('');
     const [resendCountdown, setResendCountdown] = useState(0);
-    const { verify, login } = useAuth();
+    const { verify, login, handleMagicLink } = useAuth();
 
     const email = route.params?.email || '';
     const returnTo = route.params?.returnTo;
@@ -56,6 +57,74 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
     useEffect(() => {
         setResendCountdown(60); // 60 second countdown
     }, []);
+
+    // Handle magic link deep links
+    useEffect(() => {
+        const handleDeepLink = async (url: string) => {
+            console.log('📱 Deep link received:', url);
+
+            // Check if it's an auth callback URL
+            if (url.includes('auth/callback')) {
+                setIsLoading(true);
+
+                try {
+                    const result = await handleMagicLink(url);
+
+                    if (result.success) {
+                        Alert.alert(
+                            'Welcome!',
+                            'You have been successfully authenticated via magic link.',
+                            [
+                                {
+                                    text: 'Continue',
+                                    onPress: () => {
+                                        if (returnTo === 'Game') {
+                                            navigation.navigate('Game');
+                                        } else if (returnTo === 'Profile') {
+                                            navigation.navigate('Profile');
+                                        } else {
+                                            // Navigate to profile by default
+                                            navigation.navigate('Profile');
+                                        }
+                                    },
+                                },
+                            ]
+                        );
+                    } else {
+                        Alert.alert(
+                            'Authentication Failed',
+                            result.error || 'Magic link authentication failed. Please try entering the code manually.',
+                            [{ text: 'OK' }]
+                        );
+                    }
+                } catch (error) {
+                    Alert.alert(
+                        'Authentication Error',
+                        'Failed to process magic link. Please try entering the code manually.',
+                        [{ text: 'OK' }]
+                    );
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+        };
+
+        // Get the initial URL when the app is opened from a deep link
+        Linking.getInitialURL().then((url) => {
+            if (url) {
+                handleDeepLink(url);
+            }
+        });
+
+        // Listen for subsequent deep links while the app is running
+        const subscription = Linking.addEventListener('url', (event) => {
+            handleDeepLink(event.url);
+        });
+
+        return () => {
+            subscription?.remove();
+        };
+    }, [handleMagicLink, navigation, returnTo]);
 
     const handleCodeChange = (text: string) => {
         // Only allow numeric input and limit to 6 digits
@@ -147,8 +216,8 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
 
     const showCodeHelp = () => {
         Alert.alert(
-            'Verification Code Help',
-            'The 6-digit verification code was sent to your email address. If you don\'t see it, please check your spam folder.\n\nThe code expires after 10 minutes for security.',
+            'Verification Help',
+            'Two ways to verify your email:\n\n1. Tap the magic link in your email (opens the app automatically)\n\n2. Enter the 6-digit code from your email below\n\nIf you don\'t see the email, check your spam folder. The verification expires after 10 minutes.',
             [{ text: 'OK' }]
         );
     };
@@ -165,9 +234,12 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
                 <View style={styles.header}>
                     <Text style={styles.title}>Verify Your Email</Text>
                     <Text style={styles.subtitle}>
-                        We've sent a 6-digit verification code to:
+                        We've sent a verification email to:
                     </Text>
                     <Text style={styles.emailText}>{email}</Text>
+                    <Text style={styles.instructionText}>
+                        You can either tap the magic link in your email or enter the 6-digit code below:
+                    </Text>
                     {returnTo && (
                         <Text style={styles.returnInfo}>
                             After verification, you'll access: {returnTo}
@@ -230,7 +302,7 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
 
                 <View style={styles.footer}>
                     <TouchableOpacity onPress={showCodeHelp}>
-                        <Text style={styles.helpText}>Need help with the verification code?</Text>
+                        <Text style={styles.helpText}>Need help with verification?</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity onPress={handleBackToLogin}>
@@ -273,6 +345,13 @@ const styles = StyleSheet.create({
         color: '#34C759',
         fontWeight: '600',
         marginBottom: 12,
+    },
+    instructionText: {
+        fontSize: 14,
+        color: '#666',
+        textAlign: 'center',
+        lineHeight: 20,
+        marginBottom: 8,
     },
     returnInfo: {
         fontSize: 14,

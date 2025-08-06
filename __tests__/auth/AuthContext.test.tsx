@@ -3,13 +3,30 @@
 
 import React from 'react';
 import { Text, View } from 'react-native';
-import renderer from 'react-test-renderer';
+import renderer, { act } from 'react-test-renderer';
 import { AuthProvider, useAuth } from '../../src/auth/AuthContext';
-import { AuthService } from '../../src/auth/authService';
+import { SupabaseAuthService } from '../../src/auth/supabaseAuthService';
+import { AuthStorage } from '../../src/auth/storage';
 
-// Mock AuthService
-jest.mock('../../src/auth/authService');
-const mockedAuthService = jest.mocked(AuthService);
+// Mock SupabaseAuthService
+jest.mock('../../src/auth/supabaseAuthService');
+const mockedSupabaseAuthService = jest.mocked(SupabaseAuthService);
+
+// Mock AuthStorage
+jest.mock('../../src/auth/storage', () => ({
+    AuthStorage: {
+        getCredentials: jest.fn(),
+        storeCredentials: jest.fn(),
+        clearCredentials: jest.fn(),
+    },
+}));
+const mockedAuthStorage = jest.mocked(AuthStorage);
+
+// Mock auth utils (no longer needed but keeping for completeness)
+jest.mock('../../src/auth/utils', () => ({
+    validateEmail: jest.fn(),
+    normalizeEmail: jest.fn(email => email.toLowerCase()),
+}));
 
 // Mock AsyncStorage
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -48,13 +65,13 @@ describe('AuthContext', () => {
         jest.clearAllMocks();
 
         // Default mock implementations
-        mockedAuthService.sendLoginEmail.mockResolvedValue({
+        mockedSupabaseAuthService.sendLoginEmail.mockResolvedValue({
             success: true,
             message: 'Code sent successfully',
             requestId: 'test-request-id'
         });
 
-        mockedAuthService.verifyCode.mockResolvedValue({
+        mockedSupabaseAuthService.verifyCode.mockResolvedValue({
             success: true,
             token: 'test-token',
             user: {
@@ -66,16 +83,16 @@ describe('AuthContext', () => {
             }
         });
 
-        mockedAuthService.validateToken.mockResolvedValue({
-            valid: true,
-            user: {
-                id: 'test-user-id',
-                email: 'test@example.com',
-                isVerified: true,
-                createdAt: new Date(),
-                lastLoginAt: new Date()
-            }
+        mockedSupabaseAuthService.getCurrentSession.mockResolvedValue(null);
+        mockedSupabaseAuthService.signOut.mockResolvedValue();
+
+        // Mock AuthStorage default behavior
+        mockedAuthStorage.getCredentials.mockResolvedValue({
+            token: null,
+            email: null
         });
+        mockedAuthStorage.storeCredentials.mockResolvedValue();
+        mockedAuthStorage.clearCredentials.mockResolvedValue();
     });
 
     describe('useAuth hook', () => {
@@ -90,7 +107,7 @@ describe('AuthContext', () => {
             consoleSpy.mockRestore();
         });
 
-        test('provides initial state values', () => {
+        test('provides initial state values', async () => {
             let capturedAuth: ReturnType<typeof useAuth> | null = null;
 
             const component = renderer.create(
@@ -99,16 +116,22 @@ describe('AuthContext', () => {
                 </AuthProvider>
             );
 
+            // Wait for initial render and async operations
+            await act(async () => {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            });
+
             expect(capturedAuth).not.toBeNull();
             expect(capturedAuth!.isAuthenticated).toBe(false);
             expect(capturedAuth!.user).toBeNull();
+            // After session check completes, loading should be false
             expect(capturedAuth!.isLoading).toBe(false);
             expect(capturedAuth!.error).toBeNull();
 
             component.unmount();
         });
 
-        test('provides action functions', () => {
+        test('provides action functions', async () => {
             let capturedAuth: ReturnType<typeof useAuth> | null = null;
 
             const component = renderer.create(
@@ -116,6 +139,11 @@ describe('AuthContext', () => {
                     <TestComponent onRender={(auth) => { capturedAuth = auth; }} />
                 </AuthProvider>
             );
+
+            // Wait for initial render and async operations
+            await act(async () => {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            });
 
             expect(capturedAuth).not.toBeNull();
             expect(typeof capturedAuth!.login).toBe('function');
@@ -138,18 +166,25 @@ describe('AuthContext', () => {
                 </AuthProvider>
             );
 
+            // Wait for initial render and async operations
+            await act(async () => {
+                await new Promise(resolve => setTimeout(resolve, 100));
+            });
+
             expect(capturedAuth).not.toBeNull();
 
-            await capturedAuth!.login('test@example.com');
+            await act(async () => {
+                await capturedAuth!.login('test@example.com');
+            });
 
-            expect(mockedAuthService.sendLoginEmail).toHaveBeenCalledWith('test@example.com');
+            expect(mockedSupabaseAuthService.sendLoginEmail).toHaveBeenCalledWith('test@example.com');
             expect(capturedAuth!.error).toBeNull();
 
             component.unmount();
         });
 
         test('handles send email failure', async () => {
-            mockedAuthService.sendLoginEmail.mockResolvedValue({
+            mockedSupabaseAuthService.sendLoginEmail.mockResolvedValue({
                 success: false,
                 message: 'Email send failed'
             });
@@ -184,7 +219,7 @@ describe('AuthContext', () => {
 
             await capturedAuth!.verify('test@example.com', '123456');
 
-            expect(mockedAuthService.verifyCode).toHaveBeenCalledWith('test@example.com', '123456');
+            expect(mockedSupabaseAuthService.verifyCode).toHaveBeenCalledWith('test@example.com', '123456');
             expect(capturedAuth!.isAuthenticated).toBe(true);
             expect(capturedAuth!.user).toBeDefined();
             expect(capturedAuth!.error).toBeNull();
@@ -193,7 +228,7 @@ describe('AuthContext', () => {
         });
 
         test('handles verification failure', async () => {
-            mockedAuthService.verifyCode.mockResolvedValue({
+            mockedSupabaseAuthService.verifyCode.mockResolvedValue({
                 success: false,
                 error: 'Invalid verification code'
             });
@@ -243,7 +278,7 @@ describe('AuthContext', () => {
         });
 
         test('clears error state', async () => {
-            mockedAuthService.sendLoginEmail.mockResolvedValue({
+            mockedSupabaseAuthService.sendLoginEmail.mockResolvedValue({
                 success: false,
                 message: 'Test error'
             });
@@ -293,7 +328,7 @@ describe('AuthContext', () => {
             // Wait for async restoration
             await new Promise(resolve => setTimeout(resolve, 100));
 
-            expect(mockedAuthService.validateToken).toHaveBeenCalledWith('stored-token');
+            expect(mockedSupabaseAuthService.getCurrentSession).toHaveBeenCalled();
             expect(mockAsyncStorage.getItem).toHaveBeenCalledWith('auth_credentials');
 
             component.unmount();
@@ -306,9 +341,7 @@ describe('AuthContext', () => {
                 user: { id: 'test' }
             }));
 
-            mockedAuthService.validateToken.mockResolvedValue({
-                valid: false
-            });
+            mockedSupabaseAuthService.getCurrentSession.mockResolvedValue(null);
 
             let capturedAuth: ReturnType<typeof useAuth> | null = null;
 
@@ -331,7 +364,7 @@ describe('AuthContext', () => {
 
     describe('error handling', () => {
         test('handles network errors gracefully', async () => {
-            mockedAuthService.sendLoginEmail.mockRejectedValue(new Error('Network error'));
+            mockedSupabaseAuthService.sendLoginEmail.mockRejectedValue(new Error('Network error'));
 
             let capturedAuth: ReturnType<typeof useAuth> | null = null;
 
@@ -352,7 +385,7 @@ describe('AuthContext', () => {
         });
 
         test('handles generic errors', async () => {
-            mockedAuthService.verifyCode.mockRejectedValue(new Error('Unknown error'));
+            mockedSupabaseAuthService.verifyCode.mockRejectedValue(new Error('Unknown error'));
 
             let capturedAuth: ReturnType<typeof useAuth> | null = null;
 

@@ -116,12 +116,22 @@ describe('OTP Code Validation', () => {
     });
 
     test('rejects codes with wrong length', () => {
-        const wrongLengthCodes = ['12345', '1234567', '123', ''];
+        const wrongLengthCodes = ['12345', '1234567', '123'];
 
         wrongLengthCodes.forEach(code => {
             const result = validateOTPCode(code);
             expect(result.isValid).toBe(false);
             expect(result.error).toBe('Verification code must be 6 digits');
+        });
+    });
+
+    test('rejects empty codes', () => {
+        const emptyCodes = ['', '   ', '  \n  '];
+
+        emptyCodes.forEach(code => {
+            const result = validateOTPCode(code);
+            expect(result.isValid).toBe(false);
+            expect(result.error).toBe('Verification code is required');
         });
     });
 

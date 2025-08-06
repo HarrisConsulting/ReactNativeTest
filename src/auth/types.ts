@@ -43,6 +43,7 @@ export interface VerificationResponse {
     token?: string;
     user?: User;
     error?: string;
+    message?: string; // Additional descriptive message for specific error cases
 }
 
 export interface AuthActions {
@@ -51,6 +52,7 @@ export interface AuthActions {
     logout: () => Promise<void>;
     clearError: () => void;
     checkAuthStatus: () => Promise<void>;
+    handleMagicLink: (url: string) => Promise<VerificationResponse>;
 }
 
 export interface AuthContextType extends AuthState, AuthActions { }

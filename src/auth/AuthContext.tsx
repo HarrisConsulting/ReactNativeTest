@@ -9,9 +9,8 @@ import {
     LoginResponse,
     VerificationResponse
 } from './types';
-import { AuthService } from './authService';
+import { SupabaseAuthService } from './supabaseAuthService';
 import { AuthStorage } from './storage';
-import { checkTokenExpiration } from './utils';
 
 // Initial authentication state
 const initialState: AuthState = {
@@ -143,47 +142,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
             dispatch({ type: 'AUTH_START_LOADING' });
 
-            const { token, email } = await AuthStorage.getCredentials();
+            // Try to get current session from Supabase
+            const session = await SupabaseAuthService.getCurrentSession();
 
-            if (!token || !email) {
-                dispatch({ type: 'AUTH_STOP_LOADING' });
-                return;
-            }
+            if (session && session.user) {
+                // Convert Supabase user to our User type
+                const user: User = {
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    isVerified: true,
+                    createdAt: new Date(),
+                    lastLoginAt: new Date()
+                };
 
-            // Check if token is still valid
-            if (!checkTokenExpiration(token)) {
-                // Token expired, clear stored credentials
-                await AuthStorage.clearCredentials();
-                dispatch({ type: 'AUTH_STOP_LOADING' });
-                return;
-            }
-
-            // Validate token with service
-            const validation = await AuthService.validateToken(token.token);
-
-            if (validation.valid && validation.user) {
                 dispatch({
                     type: 'AUTH_RESTORE_SESSION',
-                    payload: { user: validation.user }
+                    payload: { user }
                 });
             } else {
-                // Invalid token, clear stored credentials
-                await AuthStorage.clearCredentials();
                 dispatch({ type: 'AUTH_STOP_LOADING' });
             }
         } catch (error) {
             console.error('Session restoration error:', error);
-            // Clear potentially corrupted credentials
-            await AuthStorage.clearCredentials();
             dispatch({ type: 'AUTH_STOP_LOADING' });
         }
-    };
-
-    const login = async (email: string): Promise<LoginResponse> => {
+    }; const login = async (email: string): Promise<LoginResponse> => {
         try {
             dispatch({ type: 'AUTH_LOGIN_START', payload: { email } });
 
-            const response = await AuthService.sendLoginEmail(email);
+            const response = await SupabaseAuthService.sendLoginEmail(email);
 
             if (response.success) {
                 dispatch({ type: 'AUTH_LOGIN_SUCCESS', payload: { email } });
@@ -207,7 +194,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         try {
             dispatch({ type: 'AUTH_START_LOADING' });
 
-            const response = await AuthService.verifyCode(email, code);
+            const response = await SupabaseAuthService.verifyCode(email, code);
 
             if (response.success && response.user && response.token) {
                 // Store credentials for future sessions
@@ -246,6 +233,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // Clear stored credentials
             await AuthStorage.clearCredentials();
 
+            // Sign out from Supabase
+            await SupabaseAuthService.signOut();
+
             // Update state
             dispatch({ type: 'AUTH_LOGOUT' });
         } catch (error) {
@@ -259,6 +249,44 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         dispatch({ type: 'AUTH_CLEAR_ERROR' });
     };
 
+    const handleMagicLink = async (url: string): Promise<VerificationResponse> => {
+        try {
+            dispatch({ type: 'AUTH_START_LOADING' });
+
+            const response = await SupabaseAuthService.handleMagicLink(url);
+
+            if (response.success && response.user && response.token) {
+                // Store credentials for future sessions
+                const token = {
+                    token: response.token,
+                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+                };
+
+                await AuthStorage.storeCredentials(token, response.user.email);
+
+                dispatch({
+                    type: 'AUTH_VERIFY_SUCCESS',
+                    payload: { user: response.user }
+                });
+            } else {
+                dispatch({
+                    type: 'AUTH_VERIFY_ERROR',
+                    payload: { error: response.error || 'Magic link authentication failed' }
+                });
+            }
+
+            return response;
+        } catch (error) {
+            const errorMessage = 'Magic link authentication failed. Please try again.';
+            dispatch({ type: 'AUTH_VERIFY_ERROR', payload: { error: errorMessage } });
+
+            return {
+                success: false,
+                error: errorMessage,
+            };
+        }
+    };
+
     const checkAuthStatus = async (): Promise<void> => {
         await checkExistingSession();
     };
@@ -270,6 +298,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logout,
         clearError,
         checkAuthStatus,
+        handleMagicLink,
     };
 
     return (

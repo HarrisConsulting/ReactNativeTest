@@ -59,19 +59,28 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation, route }) => {
         setIsLoading(true);
 
         try {
-            await login(email.trim());
+            const response = await login(email.trim());
 
-            // Navigate to verification screen with email and return destination
-            navigation.navigate('Verification', {
-                email: email.trim(),
-                returnTo
-            });
+            if (response.success) {
+                // Navigate to verification screen with email and return destination
+                navigation.navigate('Verification', {
+                    email: email.trim(),
+                    returnTo
+                });
 
-            Alert.alert(
-                'Email Sent',
-                `We've sent a verification code to ${email.trim()}. Please check your email and enter the code on the next screen.`,
-                [{ text: 'OK' }]
-            );
+                Alert.alert(
+                    'Email Sent',
+                    `We've sent a verification code to ${email.trim()}. Please check your email and enter the code on the next screen.`,
+                    [{ text: 'OK' }]
+                );
+            } else {
+                // Handle authentication rejection (non-whitelisted email, etc.)
+                Alert.alert(
+                    'Access Denied',
+                    response.message || 'This email address is not authorized for access.',
+                    [{ text: 'OK' }]
+                );
+            }
         } catch (error) {
             Alert.alert(
                 'Login Failed',
