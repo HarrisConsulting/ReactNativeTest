@@ -315,15 +315,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Install actionlint
-        run: |
-          curl -L https://github.com/rhymond/actionlint/releases/latest/download/actionlint_linux_amd64.tar.gz | tar xz
-          sudo mv actionlint /usr/local/bin/
-          
-      - name: Validate workflow syntax
-        run: |
-          echo "⚙️ Validating GitHub Actions workflow syntax..."
-          actionlint .github/workflows/*.yml
+      - name: Validate workflow syntax with actionlint
+        uses: raven-actions/actionlint@v1
+        with:
+          files: '.github/workflows/*.yml'
           
       - name: Workflow change summary
         run: |
