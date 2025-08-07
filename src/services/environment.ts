@@ -1,6 +1,10 @@
 // Environment validation to prevent critical footguns
 import Config from 'react-native-config';
 
+// Fallback values for Android if react-native-config fails
+const FALLBACK_SUPABASE_URL = 'https://kummmbuildcstnzahzsy.supabase.co';
+const FALLBACK_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt1bW1tYnVpbGRjc3RuemFoenN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ0OTA0MTcsImV4cCI6MjA3MDA2NjQxN30.i20-Nod8uyytgHQr1kmQnP_GdmkK8UCl-hFRptHnFsI';
+
 export interface Environment {
     SUPABASE_URL: string;
     SUPABASE_ANON_KEY: string;
@@ -9,8 +13,8 @@ export interface Environment {
 }
 
 export const environment: Environment = {
-    SUPABASE_URL: Config.SUPABASE_URL || '',
-    SUPABASE_ANON_KEY: Config.SUPABASE_ANON_KEY || '',
+    SUPABASE_URL: Config.SUPABASE_URL || FALLBACK_SUPABASE_URL,
+    SUPABASE_ANON_KEY: Config.SUPABASE_ANON_KEY || FALLBACK_SUPABASE_ANON_KEY,
     APP_ENV: Config.APP_ENV || 'development',
     APP_VERSION: Config.APP_VERSION || '1.0.0',
 };

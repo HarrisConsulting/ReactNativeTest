@@ -15,7 +15,9 @@ if (envErrors.length > 0) {
 logAuthDebug('supabase-init', {
     hasUrl: !!environment.SUPABASE_URL,
     hasKey: !!environment.SUPABASE_ANON_KEY,
-    environment: environment.APP_ENV
+    environment: environment.APP_ENV,
+    url: environment.SUPABASE_URL,
+    keyPrefix: environment.SUPABASE_ANON_KEY.substring(0, 10)
 });
 
 // Create Supabase client
@@ -37,6 +39,13 @@ export const supabase: SupabaseClient = createClient(
         },
     },
 );
+
+// Validate Supabase client was created successfully
+if (!supabase) {
+    const error = new Error('❌ Failed to create Supabase client');
+    logAuthError('supabase-creation-failed', error, { environment });
+    throw error;
+}
 
 console.log('✅ Supabase client created successfully');
 console.log('  Client type:', typeof supabase);
