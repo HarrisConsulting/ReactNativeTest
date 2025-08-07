@@ -86,8 +86,29 @@ jobs:
           fi
           
           # Get changed files (with error handling)
-          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
-          TOTAL_FILES=$(echo "$CHANGED_FILES" | wc -l)
+          echo "🔍 Attempting to get changed files using: git diff --name-only \"$BASE_SHA\" \"$HEAD_SHA\""
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || echo "")
+          
+          # Fallback if git diff failed
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "⚠️  Primary diff failed, using fallback: git diff --name-only HEAD~1 HEAD"
+            CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+          fi
+          
+          # Final fallback if still empty
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "⚠️  All diff methods failed, using git show for current commit"
+            CHANGED_FILES=$(git show --name-only --pretty="" HEAD 2>/dev/null || echo "")
+          fi
+          
+          # Count files (handle empty case)
+          if [ -n "$CHANGED_FILES" ]; then
+            TOTAL_FILES=$(echo "$CHANGED_FILES" | wc -l)
+          else
+            echo "⚠️  No changed files detected, defaulting to 1"
+            CHANGED_FILES="unknown-file"
+            TOTAL_FILES=1
+          fi
           
           echo "📊 Total changed files: $TOTAL_FILES"
           echo "Changed files:"
@@ -113,26 +134,38 @@ jobs:
           
           # Determine if changes are significant
           SIGNIFICANT_CHANGES="false"
-          SIGNIFICANCE_REASONS=()
+          SIGNIFICANCE_REASONS=""
           
           if [ "$TOTAL_FILES" -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ]; then
             SIGNIFICANT_CHANGES="true"
-            SIGNIFICANCE_REASONS+=("Large changeset: $TOTAL_FILES files")
+            SIGNIFICANCE_REASONS="Large changeset: $TOTAL_FILES files"
           fi
           
           if [ "$AUTH_CHANGES" -gt 0 ]; then
             SIGNIFICANT_CHANGES="true"
-            SIGNIFICANCE_REASONS+=("Authentication system changes")
+            if [ -n "$SIGNIFICANCE_REASONS" ]; then
+              SIGNIFICANCE_REASONS="$SIGNIFICANCE_REASONS; Authentication system changes"
+            else
+              SIGNIFICANCE_REASONS="Authentication system changes"
+            fi
           fi
           
           if [ "$WORKFLOW_CHANGES" -gt 0 ]; then
             SIGNIFICANT_CHANGES="true"
-            SIGNIFICANCE_REASONS+=("CI/CD workflow changes")
+            if [ -n "$SIGNIFICANCE_REASONS" ]; then
+              SIGNIFICANCE_REASONS="$SIGNIFICANCE_REASONS; CI/CD workflow changes"
+            else
+              SIGNIFICANCE_REASONS="CI/CD workflow changes"
+            fi
           fi
           
           if [ "$DEPENDENCY_CHANGES" -gt 0 ]; then
             SIGNIFICANT_CHANGES="true"
-            SIGNIFICANCE_REASONS+=("Dependency updates")
+            if [ -n "$SIGNIFICANCE_REASONS" ]; then
+              SIGNIFICANCE_REASONS="$SIGNIFICANCE_REASONS; Dependency updates"
+            else
+              SIGNIFICANCE_REASONS="Dependency updates"
+            fi
           fi
           
           # Determine test strategy
@@ -182,12 +215,10 @@ jobs:
           echo "**Test Strategy:** \`$TEST_STRATEGY\`" >> $GITHUB_STEP_SUMMARY
           echo "**Significant Changes:** \`$SIGNIFICANT_CHANGES\`" >> $GITHUB_STEP_SUMMARY
           
-          if [ ${#SIGNIFICANCE_REASONS[@]} -gt 0 ]; then
+          if [ -n "$SIGNIFICANCE_REASONS" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "**Significance Reasons:**" >> $GITHUB_STEP_SUMMARY
-            for reason in "${SIGNIFICANCE_REASONS[@]}"; do
-              echo "- $reason" >> $GITHUB_STEP_SUMMARY
-            done
+            echo "- $SIGNIFICANCE_REASONS" >> $GITHUB_STEP_SUMMARY
           fi
 
   lint:
