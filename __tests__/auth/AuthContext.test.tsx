@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Text, View } from 'react-native';
-import renderer, { act } from 'react-test-renderer';
+import renderer from 'react-test-renderer';
 import { AuthProvider, useAuth } from '../../src/auth/AuthContext';
 import { SupabaseAuthService } from '../../src/auth/supabaseAuthService';
 import { AuthStorage } from '../../src/auth/storage';
