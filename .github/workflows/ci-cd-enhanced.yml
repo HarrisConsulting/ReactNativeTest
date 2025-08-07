@@ -86,13 +86,13 @@ jobs:
           fi
           
           # Get changed files (with error handling)
-          CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+          CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || git diff --name-only HEAD~1 HEAD)
           TOTAL_FILES=$(echo "$CHANGED_FILES" | wc -l)
           
           echo "📊 Total changed files: $TOTAL_FILES"
           echo "Changed files:"
           echo "$CHANGED_FILES" | head -20  # Show first 20 files
-          if [ $TOTAL_FILES -gt 20 ]; then
+          if [ "$TOTAL_FILES" -gt 20 ]; then
             echo "... and $((TOTAL_FILES - 20)) more files"
           fi
           
@@ -115,35 +115,35 @@ jobs:
           SIGNIFICANT_CHANGES="false"
           SIGNIFICANCE_REASONS=()
           
-          if [ $TOTAL_FILES -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ]; then
+          if [ "$TOTAL_FILES" -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ]; then
             SIGNIFICANT_CHANGES="true"
             SIGNIFICANCE_REASONS+=("Large changeset: $TOTAL_FILES files")
           fi
           
-          if [ $AUTH_CHANGES -gt 0 ]; then
+          if [ "$AUTH_CHANGES" -gt 0 ]; then
             SIGNIFICANT_CHANGES="true"
             SIGNIFICANCE_REASONS+=("Authentication system changes")
           fi
           
-          if [ $WORKFLOW_CHANGES -gt 0 ]; then
+          if [ "$WORKFLOW_CHANGES" -gt 0 ]; then
             SIGNIFICANT_CHANGES="true"
             SIGNIFICANCE_REASONS+=("CI/CD workflow changes")
           fi
           
-          if [ $DEPENDENCY_CHANGES -gt 0 ]; then
+          if [ "$DEPENDENCY_CHANGES" -gt 0 ]; then
             SIGNIFICANT_CHANGES="true"
             SIGNIFICANCE_REASONS+=("Dependency updates")
           fi
           
           # Determine test strategy
           TEST_STRATEGY="standard"
-          if [ $AUTH_CHANGES -gt 0 ]; then
+          if [ "$AUTH_CHANGES" -gt 0 ]; then
             TEST_STRATEGY="comprehensive-auth"
-          elif [ $WORKFLOW_CHANGES -gt 0 ]; then
+          elif [ "$WORKFLOW_CHANGES" -gt 0 ]; then
             TEST_STRATEGY="workflow-validation"
-          elif [ $DEPENDENCY_CHANGES -gt 0 ]; then
+          elif [ "$DEPENDENCY_CHANGES" -gt 0 ]; then
             TEST_STRATEGY="dependency-validation"
-          elif [ $TOTAL_FILES -gt 20 ]; then
+          elif [ "$TOTAL_FILES" -gt 20 ]; then
             TEST_STRATEGY="comprehensive"
           fi
           
@@ -171,13 +171,13 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Metric | Count | Significant |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|-------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Total Files | $TOTAL_FILES | $([ $TOTAL_FILES -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ] && echo '⚠️ Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Auth Changes | $AUTH_CHANGES | $([ $AUTH_CHANGES -gt 0 ] && echo '🔐 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Workflow Changes | $WORKFLOW_CHANGES | $([ $WORKFLOW_CHANGES -gt 0 ] && echo '⚙️ Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Changes | $DEPENDENCY_CHANGES | $([ $DEPENDENCY_CHANGES -gt 0 ] && echo '📦 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Navigation Changes | $NAVIGATION_CHANGES | $([ $NAVIGATION_CHANGES -gt 0 ] && echo '🧭 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Screen Changes | $SCREEN_CHANGES | $([ $SCREEN_CHANGES -gt 0 ] && echo '📱 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Changes | $TEST_CHANGES | $([ $TEST_CHANGES -gt 0 ] && echo '🧪 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Files | $TOTAL_FILES | $([ "$TOTAL_FILES" -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ] && echo '⚠️ Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth Changes | $AUTH_CHANGES | $([ "$AUTH_CHANGES" -gt 0 ] && echo '🔐 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Changes | $WORKFLOW_CHANGES | $([ "$WORKFLOW_CHANGES" -gt 0 ] && echo '⚙️ Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Changes | $DEPENDENCY_CHANGES | $([ "$DEPENDENCY_CHANGES" -gt 0 ] && echo '📦 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Navigation Changes | $NAVIGATION_CHANGES | $([ "$NAVIGATION_CHANGES" -gt 0 ] && echo '🧭 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Screen Changes | $SCREEN_CHANGES | $([ "$SCREEN_CHANGES" -gt 0 ] && echo '📱 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Changes | $TEST_CHANGES | $([ "$TEST_CHANGES" -gt 0 ] && echo '🧪 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Test Strategy:** \`$TEST_STRATEGY\`" >> $GITHUB_STEP_SUMMARY
           echo "**Significant Changes:** \`$SIGNIFICANT_CHANGES\`" >> $GITHUB_STEP_SUMMARY
@@ -326,7 +326,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The following workflow files were modified:" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E "\.github/workflows/" >> $GITHUB_STEP_SUMMARY
+          git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" | grep -E "\.github/workflows/" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "⚠️ **Important:** Monitor this CI run for new workflow behavior." >> $GITHUB_STEP_SUMMARY
