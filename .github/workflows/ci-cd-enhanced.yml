@@ -222,12 +222,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        test-suite: 
-          - ${{ (needs.change-detection.outputs.test-strategy == 'comprehensive' || needs.change-detection.outputs.test-strategy == 'comprehensive-auth') && 'all' || 'standard' }}
-          - ${{ needs.change-detection.outputs.auth-changes > 0 && 'auth' || '' }}
-          - ${{ needs.change-detection.outputs.test-strategy == 'auth-only' && 'auth-only' || '' }}
-        exclude:
-          - test-suite: ''
+        test-suite: [standard, auth]
       fail-fast: false
       
     steps:
@@ -246,17 +241,17 @@ jobs:
       - name: Run test suite
         run: |
           case "${{ matrix.test-suite }}" in
-            "all") 
-              echo "🧪 Running comprehensive test suite..."
-              npm test -- --watchAll=false --coverage
-              ;;
             "standard") 
               echo "🧪 Running standard test suite..."
               npm test -- --watchAll=false
               ;;
-            "auth"|"auth-only") 
-              echo "🔐 Running authentication test suite..."
-              npm test -- --testPathPattern="auth" --watchAll=false --verbose
+            "auth") 
+              if [ "${{ needs.change-detection.outputs.auth-changes }}" -gt 0 ] || [ "${{ needs.change-detection.outputs.test-strategy }}" = "comprehensive-auth" ]; then
+                echo "🔐 Running authentication test suite..."
+                npm test -- --testPathPattern="auth" --watchAll=false --verbose
+              else
+                echo "⏭️  Skipping auth tests - no auth changes detected"
+              fi
               ;;
           esac
         
@@ -274,10 +269,7 @@ jobs:
     name: 🔒 Security Scan
     runs-on: ubuntu-latest
     needs: [change-detection, lint]
-    if: |
-      needs.change-detection.outputs.significant-changes == 'true' ||
-      needs.change-detection.outputs.dependency-changes > 0 ||
-      github.event.inputs.test_type == 'full'
+    if: needs.change-detection.outputs.significant-changes == 'true' || needs.change-detection.outputs.dependency-changes > 0 || github.event.inputs.test_type == 'full'
     timeout-minutes: 10
     
     steps:
