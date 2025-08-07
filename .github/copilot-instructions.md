@@ -17,6 +17,181 @@ When working on React Native projects, GitHub Copilot must:
 4. **Ensure 100% CI/CD pipeline success** using established configurations
 5. **Implement enterprise-grade best practices** for production readiness
 6. **MANDATORY TESTING**: Create comprehensive test coverage for all new features
+7. **AUTOMATIC FEATURE DETECTION**: Recognize major features and recommend proper branching workflows
+
+---
+
+## 🚨 **AUTOMATIC FEATURE DETECTION & BRANCHING**
+
+### **🤖 MAJOR FEATURE DETECTION SYSTEM**
+
+**CRITICAL**: When the user mentions ANY of these patterns, IMMEDIATELY recommend creating a feature branch before proceeding with implementation.
+
+```typescript
+// ✅ AUTOMATIC TRIGGER PATTERNS - Recommend Branch Creation:
+
+const MAJOR_FEATURE_TRIGGERS = {
+  newScreens: [
+    'new screen', 'create screen', 'add screen', 'build screen',
+    'login screen', 'profile screen', 'settings screen', 'auth screen',
+    'dashboard screen', 'home screen', 'detail screen'
+  ],
+  
+  navigationChanges: [
+    'navigation structure', 'navigation flow', 'user journey', 'user flow',
+    'navigation stack', 'tab navigation', 'drawer navigation', 'stack navigator',
+    'route changes', 'navigation refactor', 'routing changes'
+  ],
+  
+  authenticationFeatures: [
+    'authentication', 'auth system', 'login system', 'signup system',
+    'user management', 'auth flow', 'login flow', 'registration flow',
+    'user profiles', 'user preferences', 'session management'
+  ],
+  
+  databaseChanges: [
+    'database schema', 'schema changes', 'migration', 'new table',
+    'database structure', 'supabase changes', 'sql changes', 'data model'
+  ],
+  
+  newFunctionality: [
+    'new feature', 'feature implementation', 'add functionality',
+    'new component', 'major component', 'system integration',
+    'api integration', 'service integration', 'third-party integration'
+  ],
+  
+  architecturalChanges: [
+    'refactor', 'architecture change', 'major restructure', 'framework change',
+    'library integration', 'state management', 'context changes', 'service layer'
+  ]
+};
+```
+
+### **🚨 AUTOMATIC RESPONSE PATTERN**
+
+When ANY trigger pattern is detected, respond with this EXACT format:
+
+```markdown
+🚨 **MAJOR FEATURE DETECTED**: {detected_feature_type}
+
+🎯 **RECOMMENDATION**: Create dedicated feature branch before proceeding
+
+📋 **Suggested Workflow**:
+1. Create branch: `git checkout -b feature/{suggested-name-based-on-feature}`
+2. Push branch: `git push -u origin feature/{suggested-name}`
+3. Create implementation plan document
+4. Follow {phase-count}-phase development approach
+5. Implement comprehensive testing strategy
+
+⏱️ **Estimated Complexity**: {simple|moderate|complex}
+🧪 **Required Testing**: {unit|integration|e2e|security} tests
+📚 **Documentation Needed**: Implementation plan, testing strategy, user journey
+
+**Would you like me to**:
+- [ ] Create the feature branch now
+- [ ] Generate implementation plan document
+- [ ] Set up testing infrastructure
+- [ ] Create documentation templates
+
+**❌ IMPORTANT**: Do not proceed with major feature implementation without proper branch isolation.
+```
+
+### **🔧 BRANCH NAMING CONVENTIONS**
+
+```typescript
+// ✅ AUTOMATIC BRANCH NAME GENERATION:
+const generateBranchName = (featureType: string, userInput: string): string => {
+  const prefixes = {
+    authentication: 'feature/auth-',
+    navigation: 'feature/nav-',
+    ui: 'feature/ui-',
+    database: 'feature/db-',
+    preferences: 'feature/prefs-',
+    integration: 'feature/integration-',
+    refactor: 'feature/refactor-'
+  };
+  
+  const cleanName = userInput
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '-')
+    .substring(0, 30);
+    
+  return `${prefixes[featureType] || 'feature/'}${cleanName}`;
+};
+
+// Examples:
+// "create login screen" → feature/auth-login-screen
+// "navigation refactor" → feature/nav-refactor
+// "user preferences" → feature/prefs-user-preferences
+// "database migration" → feature/db-migration
+```
+
+### **⚡ COMPLEXITY ASSESSMENT**
+
+```typescript
+// ✅ AUTOMATIC COMPLEXITY DETECTION:
+const assessComplexity = (triggerPatterns: string[]): ComplexityLevel => {
+  const complexIndicators = ['database', 'schema', 'authentication', 'migration', 'integration'];
+  const moderateIndicators = ['navigation', 'preferences', 'user flow', 'component'];
+  const simpleIndicators = ['screen', 'ui', 'styling', 'text'];
+  
+  if (triggerPatterns.some(pattern => complexIndicators.includes(pattern))) {
+    return {
+      level: 'complex',
+      timeEstimate: '20-40 hours (1-2 weeks)',
+      phases: 6,
+      testing: ['unit', 'integration', 'e2e', 'security']
+    };
+  }
+  
+  if (triggerPatterns.some(pattern => moderateIndicators.includes(pattern))) {
+    return {
+      level: 'moderate', 
+      timeEstimate: '12-20 hours (2-3 days)',
+      phases: 4,
+      testing: ['unit', 'integration', 'component']
+    };
+  }
+  
+  return {
+    level: 'simple',
+    timeEstimate: '4-8 hours (1-2 days)', 
+    phases: 3,
+    testing: ['unit', 'snapshot']
+  };
+};
+```
+
+### **✅ QUALITY VALIDATION REQUIREMENTS**
+
+Before proceeding with ANY major feature implementation:
+
+```bash
+# ✅ MANDATORY PRE-IMPLEMENTATION CHECKLIST:
+- [ ] Feature branch created and pushed to remote
+- [ ] Implementation plan document created
+- [ ] Testing strategy defined based on complexity
+- [ ] Documentation structure prepared
+- [ ] Clean build validation completed
+- [ ] Current git status is clean
+- [ ] CI/CD pipeline will trigger for feature branch
+
+# ✅ VALIDATION COMMANDS:
+git status                    # Must be clean
+git branch -vv               # Must show proper remote tracking
+npm run lint                 # Must pass with zero warnings
+npm run typecheck           # Must pass with zero errors
+npm test                    # Current tests must pass
+```
+
+### **❌ NEVER PROCEED WITHOUT**
+
+- ❌ **NO feature branch creation** for major features
+- ❌ **NO implementation planning** for complex features  
+- ❌ **NO testing strategy** definition
+- ❌ **NO documentation preparation**
+- ❌ **NO branch isolation** for architectural changes
 
 ---
 
@@ -1015,16 +1190,18 @@ npm run ios           # Must launch successfully after clean build
 | Test failures | Verify all mocks are configured in jest.setup.js |
 | Broken preferences (no persistence) | Follow preferred-name-and-preferences-implementation-plan.md |
 | JSONB preference merging issues | Test with proper TypeScript interfaces and server functions |
+| Major feature without branch | Use automated detection system in feature-development-automation-guide.md |
 
 ---
 
 ## 📞 **IMPLEMENTATION SUPPORT**
 
-### **When in Doubt**
+### **Implementation Support**
 1. **Reference the working implementation** in ReactNativeTest
 2. **Follow the exact patterns** documented in guides
 3. **Validate at each checkpoint** using provided commands
 4. **Prevent rather than fix** by using proven configurations
+5. **AUTOMATIC FEATURE DETECTION**: Use the automated branching system in `docs/project-management/feature-development-automation-guide.md`
 
 ### **Success Guarantee**
 Following these instructions exactly will produce:
