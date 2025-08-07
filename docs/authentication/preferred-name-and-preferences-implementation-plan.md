@@ -1,7 +1,8 @@
 # Preferred Name & Preferences System Implementation Plan
 
-**Document Version**: 1.0  
+**Document Version**: 1.1  
 **Created**: August 7, 2025  
+**Updated**: August 7, 2025 - Added mandatory database verification  
 **Project**: ReactNativeTest  
 **Status**: 📋 Planning Phase  
 **Follows**: ReactNativeTest enterprise-grade patterns and zero-warning standards  
@@ -13,10 +14,44 @@
 This document outlines the implementation of a comprehensive user preferences system, starting with a preferred name feature that allows users to personalize their experience. The implementation addresses **critical gaps in the existing preferences system** and provides a **future-proof foundation** for additional user customization options.
 
 ### **Key Objectives**
-1. **Implement preferred name feature** for personalized user experience
-2. **Fix existing broken preferences** (Email Notifications, Remember Device)
-3. **Create scalable preferences infrastructure** for future enhancements
-4. **Maintain ReactNativeTest quality standards** (zero warnings, comprehensive testing)
+1. **Verify Supabase database state** before any implementation (MANDATORY)
+2. **Implement preferred name feature** for personalized user experience
+3. **Fix existing broken preferences** (Email Notifications, Remember Device)
+4. **Create scalable preferences infrastructure** for future enhancements
+5. **Maintain ReactNativeTest quality standards** (zero warnings, comprehensive testing)
+
+---
+
+## 🚨 **CRITICAL: Database Verification Requirement**
+
+### **MANDATORY Phase 0: Database State Verification**
+
+**🔍 BEFORE ANY IMPLEMENTATION**, verify Supabase database state:
+
+```bash
+# 1. Check current database structure
+# File: supabase/check-current-database-state.sql
+# Location: Supabase SQL Editor
+
+# 2. Apply schema if needed
+# File: supabase/cloud-migration-script.sql
+# Location: Supabase SQL Editor
+
+# 3. Verify all systems operational
+# Expected: All verification queries show ✅ status
+```
+
+**📋 Required Verification Steps:**
+1. ✅ Confirm `email_whitelist` table exists
+2. ✅ Confirm `user_profiles` table exists
+3. ✅ Verify `preferred_name` column present
+4. ✅ Verify `preferences` JSONB column present
+5. ✅ Confirm security functions available
+6. ✅ Test Row Level Security policies
+
+**❌ DO NOT PROCEED** without completing database verification.
+
+**📚 Reference**: `docs/authentication/supabase-database-verification-guide.md`
 
 ---
 
@@ -105,64 +140,93 @@ CREATE INDEX idx_user_profiles_preferences ON user_profiles USING GIN (preferenc
 
 ## 📋 **Implementation Phases**
 
-## **Phase 1: Database Schema Enhancement (2-3 hours)**
+## **Phase 0: Database Verification (MANDATORY - 30 minutes)**
 
-### **1.1 Supabase Schema Updates**
+### **0.1 Supabase Database State Check**
 
-**File**: `supabase/schema.sql` (enhancement)
+**🚨 CRITICAL STEP**: Verify database configuration before proceeding.
 
-**Database Changes**:
-```sql
--- Add preferred_name and preferences columns to existing user_profiles table
-ALTER TABLE user_profiles 
-ADD COLUMN preferred_name TEXT,
-ADD COLUMN preferences JSONB DEFAULT '{}';
+**Required Actions**:
+1. **Run database state check**:
+   - File: `supabase/check-current-database-state.sql`
+   - Location: Supabase SQL Editor
+   - Purpose: Verify existing table structure
 
--- Create indexes for performance
-CREATE INDEX idx_user_profiles_preferred_name ON user_profiles(preferred_name);
-CREATE INDEX idx_user_profiles_preferences ON user_profiles USING GIN (preferences);
+2. **Apply schema if needed**:
+   - File: `supabase/cloud-migration-script.sql` 
+   - Location: Supabase SQL Editor
+   - Purpose: Create complete database schema
 
--- Create preference management function
-CREATE OR REPLACE FUNCTION update_user_preferences(
-  user_id UUID,
-  new_preferred_name TEXT DEFAULT NULL,
-  new_preferences JSONB DEFAULT NULL
-)
-RETURNS BOOLEAN
-SECURITY DEFINER
-SET search_path = public
-LANGUAGE plpgsql
-AS $$
-BEGIN
-  UPDATE user_profiles 
-  SET 
-    preferred_name = COALESCE(new_preferred_name, preferred_name),
-    preferences = COALESCE(new_preferences, preferences),
-    updated_at = NOW()
-  WHERE id = user_id;
-  
-  RETURN FOUND;
-END;
-$$;
+3. **Verify setup success**:
+   - All verification queries must show ✅ status
+   - Document verification results
+   - Confirm database matches TypeScript interfaces
 
--- Grant permissions
-GRANT EXECUTE ON FUNCTION update_user_preferences(UUID, TEXT, JSONB) TO authenticated;
+**Expected Results**:
+```
+check_type        | result
+Table Status      | ✅ Tables created successfully
+Column Status     | ✅ Preference columns added successfully
+Index Status      | ✅ Indexes created successfully  
+Function Status   | ✅ Functions created successfully
+RLS Status        | ✅ Row Level Security enabled
+Whitelist Status  | ✅ Test emails added to whitelist
 ```
 
-### **1.2 Future-Proofing Schema Design**
+**🛡️ Quality Gate**: Do not proceed to Phase 1 without ✅ database verification.
 
-**Supported Preference Categories**:
+**📚 Reference**: `docs/authentication/supabase-database-verification-guide.md`
+
+---
+
+## **Phase 1: TypeScript Interface Enhancement (1-2 hours)**
+
+## **Phase 1: TypeScript Interface Enhancement (1-2 hours)**
+
+### **1.1 Enhanced User Interface**
+
+**File**: `src/auth/types.ts`
+
+**TypeScript Updates**:
 ```typescript
-interface UserPreferences {
-  // Current broken preferences (now fixed)
-  notifications?: {
-    email: boolean;
-    push: boolean;
-  };
-  device?: {
-    rememberDevice: boolean;
-    sessionExtension: boolean;
-  };
+export interface User {
+    id: string;
+    email: string;
+    createdAt: Date;
+    lastLoginAt: Date;
+    isVerified: boolean;
+    preferredName?: string;        // NEW: Optional preferred name
+    preferences?: UserPreferences;  // NEW: Structured preferences
+}
+
+export interface UserPreferences {
+    // Fixed: Current broken preferences with server persistence
+    notifications?: {
+        email: boolean;
+        push: boolean;
+    };
+    device?: {
+        rememberDevice: boolean;
+        sessionExtension?: boolean;
+    };
+    
+    // Future: Game selection preferences
+    gameTypes?: GameType[];
+    
+    // Future: Theme and accessibility
+    theme?: 'light' | 'dark';
+    accessibility?: {
+        fontSize: 'small' | 'medium' | 'large';
+        highContrast: boolean;
+    };
+}
+
+export type GameType = 'Arcade' | 'Strategy' | 'RPG' | 'Puzzle' | 'Action' | 'Sports';
+```
+
+---
+
+## **Phase 2: Authentication Service Enhancement (2-3 hours)**
   
   // New game preferences (future expansion)
   gameTypes?: GameType[];

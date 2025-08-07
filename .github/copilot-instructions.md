@@ -197,6 +197,83 @@ npm test                    # Current tests must pass
 
 ## 🚨 **CRITICAL SUCCESS PATTERNS**
 
+### **🔍 MANDATORY DATABASE VERIFICATION (SUPABASE FEATURES)**
+
+```typescript
+// 🚨 CRITICAL: For ANY feature requiring Supabase database changes
+// ALWAYS verify database state before proceeding with implementation
+
+const SUPABASE_VERIFICATION_CHECKLIST = {
+  databaseStateCheck: [
+    '1. Run supabase/check-current-database-state.sql in Supabase SQL Editor',
+    '2. Verify all required tables exist with correct structure',
+    '3. Check for any missing columns, indexes, or constraints',
+    '4. Document current database state and version'
+  ],
+  
+  schemaApplication: [
+    '1. If tables missing: Apply supabase/cloud-migration-script.sql',
+    '2. If columns missing: Create migration script for additions',
+    '3. Verify all verification queries show ✅ status',
+    '4. Test database functions work correctly'
+  ],
+  
+  verificationDocumentation: [
+    '1. Create database verification log with timestamp',
+    '2. Document applied changes and their verification',
+    '3. Update implementation plan with database status',
+    '4. Confirm database matches TypeScript interface expectations'
+  ]
+};
+
+// ❌ NEVER: Assume database tables exist without verification
+// ❌ NEVER: Proceed with Supabase-dependent code before database setup
+// ❌ NEVER: Skip database verification for "small" features
+// Causes: Runtime errors, failed authentication, broken user flows
+```
+
+### **🛡️ DATABASE VERIFICATION WORKFLOW**
+
+```bash
+# ✅ REQUIRED SEQUENCE for Supabase features:
+
+# Step 1: Check Database State
+echo "📋 Verifying Supabase database state..."
+# Copy supabase/check-current-database-state.sql to Supabase SQL Editor
+# Run and document results
+
+# Step 2: Apply Schema if Needed  
+if [[ "$TABLES_MISSING" == "true" ]]; then
+  echo "🔧 Applying database schema..."
+  # Copy supabase/cloud-migration-script.sql to Supabase SQL Editor
+  # Run and verify all checks pass
+fi
+
+# Step 3: Validate Implementation Readiness
+echo "✅ Database verification complete"
+echo "📋 Ready for Phase 1+ implementation"
+
+# ❌ DO NOT PROCEED without ✅ database verification
+```
+
+### **🚨 AUTOMATIC DATABASE FEATURE DETECTION**
+
+```typescript
+// ✅ TRIGGERS requiring database verification:
+const DATABASE_DEPENDENT_FEATURES = [
+  'user preferences', 'preferred name', 'user profile',
+  'authentication data', 'user settings', 'profile management',
+  'supabase integration', 'database storage', 'user data',
+  'preference persistence', 'profile customization'
+];
+
+// When ANY of these patterns detected, IMMEDIATELY require:
+// 1. Database state verification
+// 2. Schema application if needed  
+// 3. Verification documentation
+// 4. Only then proceed with implementation phases
+```
+
 ### **MANDATORY TESTING REQUIREMENTS**
 
 ```typescript
@@ -640,6 +717,32 @@ npm run ios
 ---
 
 ## 📋 **IMPLEMENTATION WORKFLOW**
+
+### **Phase 0: Supabase Database Verification (MANDATORY FOR DATABASE FEATURES)**
+```bash
+# 🚨 CRITICAL: Always verify database state before Supabase-dependent features
+# This phase MUST be completed before any database-related implementation
+
+# ✅ REQUIRED: Check current database state
+# 1. Go to https://supabase.com/dashboard/project/YOUR_PROJECT_ID/sql
+# 2. Run: supabase/check-current-database-state.sql
+# 3. Verify tables exist and have correct structure
+
+# ✅ REQUIRED: Apply database schema if needed
+# If tables don't exist or are incomplete:
+# 1. Copy contents of supabase/cloud-migration-script.sql
+# 2. Run in Supabase SQL Editor
+# 3. Verify all checks show ✅ status
+
+# ✅ REQUIRED: Document database state
+# Create verification log with:
+# - Current table structure
+# - Applied migrations
+# - Verification results
+# - Timestamp of changes
+```
+
+**🚨 NEVER PROCEED TO PHASE 1+ WITHOUT DATABASE VERIFICATION FOR SUPABASE FEATURES**
 
 ### **Phase 1: Project Foundation**
 ```bash
