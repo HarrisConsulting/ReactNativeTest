@@ -1,5 +1,5 @@
 -- ================================================================
--- SUPABASE CLOUD MIGRATION: Preferred Name and Preferences
+-- SUPABASE CLOUD INITIAL SETUP: Complete Schema Creation
 -- Project: kummmbuildcstnzahzsy.supabase.co
 -- Date: August 7, 2025
 -- 
@@ -10,46 +10,122 @@
 -- 4. Verify results with the verification query at the bottom
 -- ================================================================
 
--- Step 1: Add new columns to existing user_profiles table
-ALTER TABLE user_profiles 
-ADD COLUMN IF NOT EXISTS preferred_name TEXT,
-ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}';
+-- Step 1: Create Email Whitelist Table
+CREATE TABLE IF NOT EXISTS email_whitelist (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
--- Step 2: Add constraint for preferred name validation
+-- Step 2: Create User Profiles Table (with preferred name and preferences from start)
+CREATE TABLE IF NOT EXISTS user_profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email TEXT UNIQUE NOT NULL,
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  last_login_at TIMESTAMP WITH TIME ZONE,
+  preferred_name TEXT,
+  preferences JSONB DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Step 3: Add constraint for preferred name validation
+ALTER TABLE user_profiles 
+ADD CONSTRAINT IF NOT EXISTS chk_preferred_name_length 
+CHECK (preferred_name IS NULL OR (LENGTH(TRIM(preferred_name)) > 0 AND LENGTH(TRIM(preferred_name)) <= 50));
+
+-- Step 4: Enable Row Level Security
+ALTER TABLE email_whitelist ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
+
+-- Step 5: Create RLS Policies for email_whitelist
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM information_schema.constraint_column_usage 
-    WHERE constraint_name = 'chk_preferred_name_length'
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'email_whitelist' 
+    AND policyname = 'Allow reading email whitelist for auth checks'
   ) THEN
-    ALTER TABLE user_profiles 
-    ADD CONSTRAINT chk_preferred_name_length 
-    CHECK (preferred_name IS NULL OR (LENGTH(TRIM(preferred_name)) > 0 AND LENGTH(TRIM(preferred_name)) <= 50));
+    CREATE POLICY "Allow reading email whitelist for auth checks" ON email_whitelist
+      FOR SELECT
+      USING (status = 'active');
   END IF;
 END $$;
 
--- Step 3: Create performance indexes
+-- Step 6: Create RLS Policies for user_profiles
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'user_profiles' 
+    AND policyname = 'Users can read own profile'
+  ) THEN
+    CREATE POLICY "Users can read own profile" ON user_profiles
+      FOR SELECT
+      USING (auth.uid() = id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'user_profiles' 
+    AND policyname = 'Users can update own profile'
+  ) THEN
+    CREATE POLICY "Users can update own profile" ON user_profiles
+      FOR UPDATE
+      USING (auth.uid() = id);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies 
+    WHERE tablename = 'user_profiles' 
+    AND policyname = 'Allow profile creation on signup'
+  ) THEN
+    CREATE POLICY "Allow profile creation on signup" ON user_profiles
+      FOR INSERT
+      WITH CHECK (auth.uid() = id);
+  END IF;
+END $$;
+
+-- Step 7: Create performance indexes
+CREATE INDEX IF NOT EXISTS idx_email_whitelist_email ON email_whitelist(email);
+CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON user_profiles(email);
 CREATE INDEX IF NOT EXISTS idx_user_profiles_preferred_name 
   ON user_profiles(preferred_name) 
   WHERE preferred_name IS NOT NULL;
-
 CREATE INDEX IF NOT EXISTS idx_user_profiles_preferences 
   ON user_profiles USING GIN (preferences);
 
--- Step 4: Initialize existing users with default preferences
-UPDATE user_profiles 
-SET preferences = COALESCE(preferences, '{
-  "notifications": {
-    "email": true,
-    "push": false
-  },
-  "device": {
-    "rememberDevice": false
-  }
-}'::JSONB)
-WHERE preferences IS NULL OR preferences = '{}'::JSONB;
+-- Step 8: Create email whitelist checking function
+CREATE OR REPLACE FUNCTION check_whitelist(email_input TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM email_whitelist 
+    WHERE email = LOWER(TRIM(email_input))
+    AND status = 'active'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Step 5: Create preference management functions
+-- Grant access to anon users (required for magic link auth)
+GRANT EXECUTE ON FUNCTION check_whitelist(TEXT) TO anon;
+
+-- Step 9: Insert test whitelisted emails
+INSERT INTO email_whitelist (email) VALUES 
+  ('test@example.com'),
+  ('admin@example.com'),
+  ('user@example.com')
+ON CONFLICT (email) DO NOTHING;
+
+-- Step 10: Create preference management functions
 CREATE OR REPLACE FUNCTION update_user_preferences(
   user_id UUID,
   new_preferred_name TEXT DEFAULT NULL,
@@ -103,7 +179,7 @@ BEGIN
 END;
 $$;
 
--- Step 6: Create preference retrieval function
+-- Step 11: Create preference retrieval function
 CREATE OR REPLACE FUNCTION get_user_preferences(user_id UUID)
 RETURNS TABLE(
   preferred_name TEXT,
@@ -128,7 +204,7 @@ BEGIN
 END;
 $$;
 
--- Step 7: Create preference validation function
+-- Step 12: Create preference validation function
 CREATE OR REPLACE FUNCTION validate_preferences(prefs JSONB)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -176,28 +252,40 @@ BEGIN
 END;
 $$;
 
--- Step 8: Grant permissions to authenticated users
+-- Step 13: Grant permissions to authenticated users
 GRANT EXECUTE ON FUNCTION update_user_preferences(UUID, TEXT, JSONB) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_user_preferences(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION validate_preferences(JSONB) TO authenticated;
 
--- Step 9: Add helpful comments
+-- Step 14: Add helpful comments
+COMMENT ON TABLE email_whitelist IS 'Pre-approved email addresses for authentication';
+COMMENT ON TABLE user_profiles IS 'User profiles with authentication data, preferred names, and preferences';
 COMMENT ON COLUMN user_profiles.preferred_name IS 'User-chosen display name (max 50 chars)';
 COMMENT ON COLUMN user_profiles.preferences IS 'User preferences stored as JSONB for flexibility';
 
 -- ================================================================
--- VERIFICATION QUERY - Run this after the migration
+-- VERIFICATION QUERY - Run this after the initial setup
 -- ================================================================
--- This query will confirm the migration was successful
+-- This query will confirm the complete setup was successful
 SELECT 
-  'Migration Status' as check_type,
+  'Table Status' as check_type,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM information_schema.tables 
+      WHERE table_name IN ('email_whitelist', 'user_profiles')
+    ) THEN '✅ Tables created successfully'
+    ELSE '❌ Tables not found'
+  END as result
+UNION ALL
+SELECT 
+  'Column Status' as check_type,
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM information_schema.columns 
       WHERE table_name = 'user_profiles' 
       AND column_name IN ('preferred_name', 'preferences')
-    ) THEN '✅ Columns added successfully'
-    ELSE '❌ Columns not found'
+    ) THEN '✅ Preference columns added successfully'
+    ELSE '❌ Preference columns not found'
   END as result
 UNION ALL
 SELECT 
@@ -216,20 +304,31 @@ SELECT
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM information_schema.routines 
-      WHERE routine_name IN ('update_user_preferences', 'get_user_preferences', 'validate_preferences')
+      WHERE routine_name IN ('update_user_preferences', 'get_user_preferences', 'validate_preferences', 'check_whitelist')
     ) THEN '✅ Functions created successfully'
     ELSE '❌ Functions not found'
   END as result
 UNION ALL
 SELECT 
-  'Data Status' as check_type,
+  'RLS Status' as check_type,
   CASE 
-    WHEN EXISTS (SELECT 1 FROM user_profiles WHERE preferences IS NOT NULL) 
-    THEN '✅ Existing users have default preferences'
-    ELSE '⚠️ No users found or preferences not initialized'
+    WHEN EXISTS (
+      SELECT 1 FROM pg_tables 
+      WHERE tablename IN ('email_whitelist', 'user_profiles') 
+      AND rowsecurity = true
+    ) THEN '✅ Row Level Security enabled'
+    ELSE '❌ RLS not properly configured'
+  END as result
+UNION ALL
+SELECT 
+  'Whitelist Status' as check_type,
+  CASE 
+    WHEN EXISTS (SELECT 1 FROM email_whitelist) 
+    THEN '✅ Test emails added to whitelist'
+    ELSE '⚠️ Whitelist is empty'
   END as result;
 
 -- ================================================================
--- MIGRATION COMPLETE
+-- INITIAL SETUP COMPLETE
 -- Expected output: All checks should show ✅ status
 -- ================================================================
