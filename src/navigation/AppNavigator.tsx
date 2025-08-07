@@ -15,6 +15,9 @@ import LoginScreen from '../screens/auth/LoginScreen';
 import VerificationScreen from '../screens/auth/VerificationScreen';
 import ProfileScreen from '../screens/auth/ProfileScreen';
 import GameScreen from '../screens/auth/GameScreen';
+import PreferredNameOnboardingScreen from '../screens/auth/PreferredNameOnboardingScreen';
+import GamePreferencesScreen from '../screens/auth/GamePreferencesScreen';
+import OnboardingCompleteScreen from '../screens/auth/OnboardingCompleteScreen';
 
 // Navigation types
 export type TabParamList = {
@@ -29,6 +32,9 @@ export type AuthStackParamList = {
   Verification: { email: string; returnTo?: string };
   Profile: undefined;
   Game: undefined;
+  PreferenceOnboardingStep1: undefined;
+  PreferenceOnboardingStep2: undefined;
+  PreferenceOnboardingStep3: undefined;
 };
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -104,6 +110,21 @@ const AuthStackNavigator = () => {
             component={GameScreen}
             options={{ title: 'Protected Game' }}
           />
+          <AuthStack.Screen
+            name="PreferenceOnboardingStep1"
+            component={PreferredNameOnboardingScreen}
+            options={{ title: 'Set Up Your Profile', headerBackTitle: 'Back' }}
+          />
+          <AuthStack.Screen
+            name="PreferenceOnboardingStep2"
+            component={GamePreferencesScreen}
+            options={{ title: 'Game Preferences', headerBackTitle: 'Back' }}
+          />
+          <AuthStack.Screen
+            name="PreferenceOnboardingStep3"
+            component={OnboardingCompleteScreen}
+            options={{ title: 'Setup Complete', headerLeft: () => null }}
+          />
         </>
       ) : (
         // Unauthenticated user screens
@@ -117,6 +138,17 @@ const AuthStackNavigator = () => {
             name="Verification"
             component={VerificationScreen}
             options={{ title: 'Verify Email' }}
+          />
+          {/* Always include Profile for navigation transitions */}
+          <AuthStack.Screen
+            name="Profile"
+            component={ProfileScreen}
+            options={{ title: 'My Profile' }}
+          />
+          <AuthStack.Screen
+            name="Game"
+            component={GameScreen}
+            options={{ title: 'Protected Game' }}
           />
         </>
       )}

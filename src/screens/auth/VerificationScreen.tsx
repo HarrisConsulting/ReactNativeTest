@@ -80,29 +80,82 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
         setIsLoading(true);
 
         try {
-            await verify(email, code.trim());
+            const result = await verify(email, code.trim());
 
-            Alert.alert(
-                'Welcome!',
-                'You have been successfully authenticated.',
-                [
-                    {
-                        text: 'Continue',
-                        onPress: () => {
-                            if (returnTo === 'Game') {
-                                navigation.navigate('Game');
-                            } else if (returnTo === 'Profile') {
-                                navigation.navigate('Profile');
-                            } else {
-                                // Navigate to profile by default
-                                navigation.navigate('Profile');
+            if (result.success) {
+                // Success: give time for auth state to update before navigating
+                Alert.alert(
+                    'Welcome!',
+                    'You have been successfully authenticated.',
+                    [
+                        {
+                            text: 'Continue',
+                            onPress: () => {
+                                // Small delay to ensure auth state is updated
+                                setTimeout(() => {
+                                    if (returnTo === 'Game') {
+                                        navigation.navigate('Game');
+                                    } else {
+                                        // Navigate to profile by default
+                                        navigation.navigate('Profile');
+                                    }
+                                }, 100);
+                            },
+                        },
+                    ]
+                );
+            } else {
+                // Handle specific error cases
+                if (result.error?.includes('expired') || result.error?.includes('invalid')) {
+                    Alert.alert(
+                        'Code Expired',
+                        'The verification code has expired. Please request a new one.',
+                        [
+                            {
+                                text: 'Get New Code',
+                                onPress: async () => {
+                                    // Clear the code and trigger resend
+                                    setCode('');
+                                    setCodeError('');
+                                    await handleResendCode();
+                                }
+                            },
+                            {
+                                text: 'Cancel',
+                                style: 'cancel'
+                            }
+                        ]
+                    );
+                } else {
+                    setCodeError(result.error || 'Verification failed. Please try again.');
+                }
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Verification failed. Please try again.';
+
+            // Handle specific error types
+            if (errorMessage.includes('expired') || errorMessage.includes('invalid')) {
+                Alert.alert(
+                    'Code Expired',
+                    'The verification code has expired. Please request a new one.',
+                    [
+                        {
+                            text: 'Get New Code',
+                            onPress: async () => {
+                                setCode('');
+                                setCodeError('');
+                                await handleResendCode();
                             }
                         },
-                    },
-                ]
-            );
-        } catch (error) {
-            setCodeError(error instanceof Error ? error.message : 'Verification failed. Please try again.');
+                        {
+                            text: 'Cancel',
+                            style: 'cancel'
+                        }
+                    ]
+                );
+            } else {
+                setCodeError(errorMessage);
+            }
         } finally {
             setIsLoading(false);
         }

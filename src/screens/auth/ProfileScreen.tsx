@@ -327,6 +327,46 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
 
             <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Game Preferences</Text>
+                <View style={styles.card}>
+                    <Text style={styles.cardDescription}>
+                        Set up your gaming preferences for a personalized experience
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.setupButton}
+                        onPress={() => navigation.navigate('PreferenceOnboardingStep1')}
+                    >
+                        <Text style={styles.setupButtonText}>🎮 Set Up Game Preferences</Text>
+                    </TouchableOpacity>
+
+                    {user?.preferences?.gamePreferences && (
+                        <View style={styles.preferenceSummary}>
+                            <Text style={styles.preferenceSummaryTitle}>Current Settings:</Text>
+                            <Text style={styles.preferenceSummaryText}>
+                                • Skill Level: {user.preferences.gamePreferences.skillLevel || 'Not set'}
+                            </Text>
+                            <Text style={styles.preferenceSummaryText}>
+                                • Session Length: {user.preferences.gamePreferences.preferredSessionLength || 'Not set'}
+                            </Text>
+                            {(() => {
+                                const gamePrefs = user.preferences.gamePreferences;
+                                const totalGames = (gamePrefs.strategyBoardGames?.length || 0) +
+                                    (gamePrefs.puzzleGames?.length || 0) +
+                                    (gamePrefs.arcadeGames?.length || 0) +
+                                    (gamePrefs.actionGames?.length || 0) +
+                                    (gamePrefs.sportsGames?.length || 0);
+                                return totalGames > 0 ? (
+                                    <Text style={styles.preferenceSummaryText}>
+                                        • Games Selected: {totalGames} games
+                                    </Text>
+                                ) : null;
+                            })()}
+                        </View>
+                    )}
+                </View>
+            </View>
+
+            <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Protected Content</Text>
                 <View style={styles.card}>
                     <Text style={styles.cardDescription}>
@@ -557,6 +597,39 @@ const styles = StyleSheet.create({
         color: '#666',
         marginTop: 6,
         fontStyle: 'italic',
+    },
+    setupButton: {
+        backgroundColor: '#007AFF',
+        paddingVertical: 14,
+        paddingHorizontal: 20,
+        borderRadius: 10,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    setupButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
+    },
+    preferenceSummary: {
+        marginTop: 16,
+        padding: 12,
+        backgroundColor: '#f8f9fa',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#e5e5e5',
+    },
+    preferenceSummaryTitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#333',
+        marginBottom: 8,
+    },
+    preferenceSummaryText: {
+        fontSize: 13,
+        color: '#666',
+        marginBottom: 4,
+        lineHeight: 18,
     },
 });
 
