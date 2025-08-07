@@ -1,0 +1,497 @@
+name: React Native CI/CD Pipeline - Enhanced
+
+on:
+  push:
+    branches: [main, develop, 'feature/*', 'hotfix/*']
+    paths:
+      - 'src/**'
+      - '__tests__/**' 
+      - 'package*.json'
+      - '.github/workflows/**'
+      - 'android/**'
+      - 'ios/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'src/**'
+      - '__tests__/**'
+      - 'package*.json'
+      - '.github/workflows/**'
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of test to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+        - full
+        - unit-only
+        - build-only
+        - auth-only
+      force_clean_build:
+        description: 'Force clean build process'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  NODE_VERSION: "18.x"
+  SIGNIFICANT_CHANGE_THRESHOLD: 10
+
+jobs:
+  change-detection:
+    name: 🔍 Analyze Changes
+    runs-on: ubuntu-latest
+    outputs:
+      significant-changes: ${{ steps.analyze.outputs.significant-changes }}
+      auth-changes: ${{ steps.analyze.outputs.auth-changes }}
+      workflow-changes: ${{ steps.analyze.outputs.workflow-changes }}
+      dependency-changes: ${{ steps.analyze.outputs.dependency-changes }}
+      test-strategy: ${{ steps.analyze.outputs.test-strategy }}
+      total-files: ${{ steps.analyze.outputs.total-files }}
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Analyze change impact
+        id: analyze
+        run: |
+          echo "🔍 Analyzing change impact for CI optimization..."
+          
+          # Determine base and head commits
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+            echo "📋 PR Mode: Comparing $BASE_SHA..$HEAD_SHA"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # For manual triggers, compare with previous commit
+            BASE_SHA="${{ github.sha }}~1"
+            HEAD_SHA="${{ github.sha }}"
+            echo "🔧 Manual Mode: Comparing $BASE_SHA..$HEAD_SHA"
+          else
+            # For push events
+            if [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA="${{ github.event.before }}"
+            else
+              # For new branches, compare with main
+              BASE_SHA="origin/main"
+            fi
+            HEAD_SHA="${{ github.sha }}"
+            echo "📤 Push Mode: Comparing $BASE_SHA..$HEAD_SHA"
+          fi
+          
+          # Get changed files (with error handling)
+          CHANGED_FILES=$(git diff --name-only $BASE_SHA $HEAD_SHA 2>/dev/null || git diff --name-only HEAD~1 HEAD)
+          TOTAL_FILES=$(echo "$CHANGED_FILES" | wc -l)
+          
+          echo "📊 Total changed files: $TOTAL_FILES"
+          echo "Changed files:"
+          echo "$CHANGED_FILES" | head -20  # Show first 20 files
+          if [ $TOTAL_FILES -gt 20 ]; then
+            echo "... and $((TOTAL_FILES - 20)) more files"
+          fi
+          
+          # Analyze specific change types
+          AUTH_CHANGES=$(echo "$CHANGED_FILES" | grep -E "(src/auth/|__tests__/auth/)" | wc -l)
+          WORKFLOW_CHANGES=$(echo "$CHANGED_FILES" | grep -E "\.github/workflows/" | wc -l)
+          DEPENDENCY_CHANGES=$(echo "$CHANGED_FILES" | grep -E "package.*\.json|yarn.lock|Podfile" | wc -l)
+          NAVIGATION_CHANGES=$(echo "$CHANGED_FILES" | grep -E "src/navigation/" | wc -l)
+          SCREEN_CHANGES=$(echo "$CHANGED_FILES" | grep -E "src/screens/" | wc -l)
+          TEST_CHANGES=$(echo "$CHANGED_FILES" | grep -E "__tests__/" | wc -l)
+          
+          echo "🔐 Auth system changes: $AUTH_CHANGES"
+          echo "⚙️ Workflow changes: $WORKFLOW_CHANGES"
+          echo "📦 Dependency changes: $DEPENDENCY_CHANGES"
+          echo "🧭 Navigation changes: $NAVIGATION_CHANGES"
+          echo "📱 Screen changes: $SCREEN_CHANGES"
+          echo "🧪 Test changes: $TEST_CHANGES"
+          
+          # Determine if changes are significant
+          SIGNIFICANT_CHANGES="false"
+          SIGNIFICANCE_REASONS=()
+          
+          if [ $TOTAL_FILES -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ]; then
+            SIGNIFICANT_CHANGES="true"
+            SIGNIFICANCE_REASONS+=("Large changeset: $TOTAL_FILES files")
+          fi
+          
+          if [ $AUTH_CHANGES -gt 0 ]; then
+            SIGNIFICANT_CHANGES="true"
+            SIGNIFICANCE_REASONS+=("Authentication system changes")
+          fi
+          
+          if [ $WORKFLOW_CHANGES -gt 0 ]; then
+            SIGNIFICANT_CHANGES="true"
+            SIGNIFICANCE_REASONS+=("CI/CD workflow changes")
+          fi
+          
+          if [ $DEPENDENCY_CHANGES -gt 0 ]; then
+            SIGNIFICANT_CHANGES="true"
+            SIGNIFICANCE_REASONS+=("Dependency updates")
+          fi
+          
+          # Determine test strategy
+          TEST_STRATEGY="standard"
+          if [ $AUTH_CHANGES -gt 0 ]; then
+            TEST_STRATEGY="comprehensive-auth"
+          elif [ $WORKFLOW_CHANGES -gt 0 ]; then
+            TEST_STRATEGY="workflow-validation"
+          elif [ $DEPENDENCY_CHANGES -gt 0 ]; then
+            TEST_STRATEGY="dependency-validation"
+          elif [ $TOTAL_FILES -gt 20 ]; then
+            TEST_STRATEGY="comprehensive"
+          fi
+          
+          # Override test strategy if specified manually
+          if [ "${{ github.event.inputs.test_type }}" != "" ]; then
+            case "${{ github.event.inputs.test_type }}" in
+              "unit-only") TEST_STRATEGY="unit-only" ;;
+              "build-only") TEST_STRATEGY="build-only" ;;
+              "auth-only") TEST_STRATEGY="auth-only" ;;
+              "full") TEST_STRATEGY="comprehensive" ;;
+            esac
+            echo "🔧 Manual override: Test strategy set to $TEST_STRATEGY"
+          fi
+          
+          # Set outputs
+          echo "significant-changes=$SIGNIFICANT_CHANGES" >> $GITHUB_OUTPUT
+          echo "auth-changes=$AUTH_CHANGES" >> $GITHUB_OUTPUT
+          echo "workflow-changes=$WORKFLOW_CHANGES" >> $GITHUB_OUTPUT
+          echo "dependency-changes=$DEPENDENCY_CHANGES" >> $GITHUB_OUTPUT
+          echo "test-strategy=$TEST_STRATEGY" >> $GITHUB_OUTPUT
+          echo "total-files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          
+          # Create detailed summary
+          echo "## 🔍 Change Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Count | Significant |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Files | $TOTAL_FILES | $([ $TOTAL_FILES -gt ${{ env.SIGNIFICANT_CHANGE_THRESHOLD }} ] && echo '⚠️ Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auth Changes | $AUTH_CHANGES | $([ $AUTH_CHANGES -gt 0 ] && echo '🔐 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Changes | $WORKFLOW_CHANGES | $([ $WORKFLOW_CHANGES -gt 0 ] && echo '⚙️ Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Changes | $DEPENDENCY_CHANGES | $([ $DEPENDENCY_CHANGES -gt 0 ] && echo '📦 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Navigation Changes | $NAVIGATION_CHANGES | $([ $NAVIGATION_CHANGES -gt 0 ] && echo '🧭 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Screen Changes | $SCREEN_CHANGES | $([ $SCREEN_CHANGES -gt 0 ] && echo '📱 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Changes | $TEST_CHANGES | $([ $TEST_CHANGES -gt 0 ] && echo '🧪 Yes' || echo '✅ No') |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Strategy:** \`$TEST_STRATEGY\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Significant Changes:** \`$SIGNIFICANT_CHANGES\`" >> $GITHUB_STEP_SUMMARY
+          
+          if [ ${#SIGNIFICANCE_REASONS[@]} -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Significance Reasons:**" >> $GITHUB_STEP_SUMMARY
+            for reason in "${SIGNIFICANCE_REASONS[@]}"; do
+              echo "- $reason" >> $GITHUB_STEP_SUMMARY
+            done
+          fi
+
+  lint:
+    name: 🔍 Lint & Type Check
+    runs-on: ubuntu-latest
+    needs: change-detection
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        
+      - name: Run ESLint
+        run: npm run lint
+        
+      - name: Run TypeScript check
+        run: npm run typecheck
+
+  unit-tests:
+    name: 🧪 Unit Tests
+    runs-on: ubuntu-latest
+    needs: [change-detection, lint]
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        test-suite: 
+          - ${{ (needs.change-detection.outputs.test-strategy == 'comprehensive' || needs.change-detection.outputs.test-strategy == 'comprehensive-auth') && 'all' || 'standard' }}
+          - ${{ needs.change-detection.outputs.auth-changes > 0 && 'auth' || '' }}
+          - ${{ needs.change-detection.outputs.test-strategy == 'auth-only' && 'auth-only' || '' }}
+        exclude:
+          - test-suite: ''
+      fail-fast: false
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        
+      - name: Run test suite
+        run: |
+          case "${{ matrix.test-suite }}" in
+            "all") 
+              echo "🧪 Running comprehensive test suite..."
+              npm test -- --watchAll=false --coverage
+              ;;
+            "standard") 
+              echo "🧪 Running standard test suite..."
+              npm test -- --watchAll=false
+              ;;
+            "auth"|"auth-only") 
+              echo "🔐 Running authentication test suite..."
+              npm test -- --testPathPattern="auth" --watchAll=false --verbose
+              ;;
+          esac
+        
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.test-suite }}
+          path: |
+            coverage/
+            junit.xml
+          retention-days: 7
+
+  security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: [change-detection, lint]
+    if: |
+      needs.change-detection.outputs.significant-changes == 'true' ||
+      needs.change-detection.outputs.dependency-changes > 0 ||
+      github.event.inputs.test_type == 'full'
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        
+      - name: Run security audit
+        run: |
+          echo "🔒 Running npm security audit..."
+          npm audit --audit-level moderate
+          
+      - name: Check for known vulnerabilities
+        run: |
+          echo "🔍 Checking for known vulnerabilities..."
+          npx audit-ci --moderate
+        continue-on-error: true
+
+  workflow-validation:
+    name: ⚙️ Workflow Validation
+    runs-on: ubuntu-latest
+    needs: change-detection
+    if: needs.change-detection.outputs.workflow-changes > 0
+    timeout-minutes: 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Install actionlint
+        run: |
+          curl -L https://github.com/rhymond/actionlint/releases/latest/download/actionlint_linux_amd64.tar.gz | tar xz
+          sudo mv actionlint /usr/local/bin/
+          
+      - name: Validate workflow syntax
+        run: |
+          echo "⚙️ Validating GitHub Actions workflow syntax..."
+          actionlint .github/workflows/*.yml
+          
+      - name: Workflow change summary
+        run: |
+          echo "## ⚙️ Workflow Changes Detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "The following workflow files were modified:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep -E "\.github/workflows/" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Important:** Monitor this CI run for new workflow behavior." >> $GITHUB_STEP_SUMMARY
+
+  build:
+    name: 🏗️ Build Validation
+    runs-on: ubuntu-latest
+    needs: [change-detection, lint, unit-tests]
+    if: |
+      needs.change-detection.outputs.test-strategy != 'unit-only' &&
+      needs.change-detection.outputs.test-strategy != 'auth-only'
+    timeout-minutes: 20
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+        
+      - name: Build for production
+        run: |
+          echo "🏗️ Building for production..."
+          npx react-native bundle --platform android --dev false --entry-file index.js --bundle-output android-bundle.js
+          echo "✅ Android bundle created successfully"
+          
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            android-bundle.js
+          retention-days: 7
+
+  clean-build-validation:
+    name: 🧹 Clean Build (Auth Changes)
+    runs-on: macos-latest
+    needs: [change-detection, lint]
+    if: |
+      needs.change-detection.outputs.auth-changes > 0 || 
+      github.event.inputs.force_clean_build == 'true'
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Setup Ruby for iOS
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.0'
+          bundler-cache: true
+          
+      - name: Clean build validation
+        run: |
+          echo "🧹 Executing clean build validation for auth changes..."
+          
+          # Clean all caches and dependencies
+          rm -rf node_modules
+          rm -rf ios/build
+          rm -rf ios/Pods
+          rm -rf ios/Podfile.lock
+          
+          # Fresh installation
+          npm install
+          
+          # iOS dependencies
+          cd ios
+          bundle install
+          bundle exec pod install
+          cd ..
+          
+          # Validate iOS bundle can be created
+          npx react-native bundle --platform ios --dev false --entry-file index.js --bundle-output ios-bundle.js
+          
+          echo "✅ Clean build validation completed - auth changes verified"
+          
+      - name: Upload clean build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-build-artifacts
+          path: |
+            ios-bundle.js
+            ios/Podfile.lock
+          retention-days: 7
+
+  summary:
+    name: 📋 Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [change-detection, lint, unit-tests, security, workflow-validation, build, clean-build-validation]
+    if: always()
+    
+    steps:
+      - name: Generate pipeline summary
+        run: |
+          echo "## 🚀 ReactNative CI/CD Pipeline Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Pipeline Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Strategy:** \`${{ needs.change-detection.outputs.test-strategy }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Significant Changes:** \`${{ needs.change-detection.outputs.significant-changes }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Files Changed:** ${{ needs.change-detection.outputs.total-files }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Job Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status | Notes |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Change Detection | ✅ Completed | Analyzed ${{ needs.change-detection.outputs.total-files }} files |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Type Check | ${{ needs.lint.result == 'success' && '✅ Passed' || needs.lint.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }} | Code quality validation |" >> $GITHUB_STEP_SUMMARY
+          echo "| Unit Tests | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || needs.unit-tests.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }} | Test strategy: ${{ needs.change-detection.outputs.test-strategy }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security.result == 'success' && '✅ Passed' || needs.security.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }} | Dependency vulnerabilities |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Validation | ${{ needs.workflow-validation.result == 'success' && '✅ Passed' || needs.workflow-validation.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }} | ${{ needs.change-detection.outputs.workflow-changes > 0 && 'Workflow changes detected' || 'No workflow changes' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Validation | ${{ needs.build.result == 'success' && '✅ Passed' || needs.build.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }} | Production build test |" >> $GITHUB_STEP_SUMMARY
+          echo "| Clean Build | ${{ needs.clean-build-validation.result == 'success' && '✅ Passed' || needs.clean-build-validation.result == 'failure' && '❌ Failed' || '⏭️ Skipped' }} | ${{ needs.change-detection.outputs.auth-changes > 0 && 'Auth changes detected' || 'No auth changes' }} |" >> $GITHUB_STEP_SUMMARY
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Overall status
+          if [[ "${{ needs.lint.result }}" == "success" && 
+                "${{ needs.unit-tests.result }}" == "success" && 
+                ("${{ needs.security.result }}" == "success" || "${{ needs.security.result }}" == "skipped") && 
+                ("${{ needs.workflow-validation.result }}" == "success" || "${{ needs.workflow-validation.result }}" == "skipped") && 
+                ("${{ needs.build.result }}" == "success" || "${{ needs.build.result }}" == "skipped") && 
+                ("${{ needs.clean-build-validation.result }}" == "success" || "${{ needs.clean-build-validation.result }}" == "skipped") ]]; then
+            echo "### 🎉 Pipeline Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All critical jobs completed successfully. This changeset is ready for deployment." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Pipeline Status: FAILED" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more critical jobs failed. Review the job logs and fix issues before proceeding." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Next steps
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.change-detection.outputs.auth-changes }}" > "0" ]]; then
+            echo "- 🔐 **Auth Changes Detected:** Consider manual testing of authentication flow" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.change-detection.outputs.workflow-changes }}" > "0" ]]; then
+            echo "- ⚙️ **Workflow Changes:** Monitor subsequent pipeline runs for new behavior" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [[ "${{ needs.change-detection.outputs.significant-changes }}" == "true" ]]; then
+            echo "- 📊 **Significant Changes:** Consider additional manual testing before deployment" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "- 🔗 **Monitor:** [GitHub Actions Dashboard](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
