@@ -179,7 +179,8 @@ export class SupabaseAuthService {
     // Get current session
     static async getCurrentSession(): Promise<{ user: User; token: string } | null> {
         try {
-            const { data: { session }, error } = await supabase.auth.getSession();
+            const { data, error } = await supabase.auth.getSession();
+            const session = data?.session;
 
             if (error || !session || !session.user) {
                 return null;

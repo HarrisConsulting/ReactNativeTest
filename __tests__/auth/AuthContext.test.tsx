@@ -142,7 +142,9 @@ describe('AuthContext', () => {
             expect(capturedAuth!.isLoading).toBe(false);
             expect(capturedAuth!.error).toBeNull();
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
 
         test('provides action functions', async () => {
@@ -154,7 +156,9 @@ describe('AuthContext', () => {
             expect(typeof capturedAuth.clearError).toBe('function');
             expect(typeof capturedAuth.checkAuthStatus).toBe('function');
 
-            component.unmount();
+            await renderer.act(async () => {
+                component.unmount();
+            });
         });
     });
 
@@ -169,7 +173,9 @@ describe('AuthContext', () => {
             expect(mockedSupabaseAuthService.sendLoginEmail).toHaveBeenCalledWith('test@example.com');
             expect(capturedAuth.error).toBeNull();
 
-            component.unmount();
+            await renderer.act(async () => {
+                component.unmount();
+            });
         });
 
         test('handles send email failure', async () => {
@@ -200,7 +206,9 @@ describe('AuthContext', () => {
             // The capturedAuth should now have the updated error state
             expect(capturedAuth!.error).toBe('Email send failed');
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
 
         test('successfully verifies code and authenticates user', async () => {
@@ -228,7 +236,9 @@ describe('AuthContext', () => {
             expect(capturedAuth!.user).toBeDefined();
             expect(capturedAuth!.error).toBeNull();
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
 
         test('handles verification failure', async () => {
@@ -260,7 +270,9 @@ describe('AuthContext', () => {
             expect(capturedAuth!.user).toBeNull();
             expect(capturedAuth!.error).toBe('Invalid verification code');
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
 
         test('clears authentication state on logout', async () => {
@@ -294,7 +306,9 @@ describe('AuthContext', () => {
             expect(capturedAuth!.user).toBeNull();
             expect(capturedAuth!.error).toBeNull();
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
 
         test('clears error state', async () => {
@@ -330,7 +344,9 @@ describe('AuthContext', () => {
             });
             expect(capturedAuth!.error).toBeNull();
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
     });
 
@@ -348,11 +364,14 @@ describe('AuthContext', () => {
                 token: 'stored-token'
             });
 
-            const component = renderer.create(
-                <AuthProvider>
-                    <TestComponent />
-                </AuthProvider>
-            );
+            let component: any;
+            await renderer.act(async () => {
+                component = renderer.create(
+                    <AuthProvider>
+                        <TestComponent />
+                    </AuthProvider>
+                );
+            });
 
             // Wait for async restoration
             await renderer.act(async () => {
@@ -362,7 +381,9 @@ describe('AuthContext', () => {
             // Should call getCurrentSession to check for existing session
             expect(mockedSupabaseAuthService.getCurrentSession).toHaveBeenCalled();
 
-            component.unmount();
+            await renderer.act(async () => {
+                component.unmount();
+            });
         });
 
         test('handles session restoration failure gracefully', async () => {
@@ -379,7 +400,9 @@ describe('AuthContext', () => {
             expect(capturedAuth.isAuthenticated).toBe(false);
             expect(capturedAuth.user).toBeNull();
 
-            component.unmount();
+            await renderer.act(async () => {
+                component.unmount();
+            });
         });
     });
 
@@ -409,7 +432,9 @@ describe('AuthContext', () => {
             expect(capturedAuth!.error).toBe('Failed to send login email. Please try again.');
             expect(capturedAuth!.isLoading).toBe(false);
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
 
         test('handles generic errors', async () => {
@@ -437,7 +462,9 @@ describe('AuthContext', () => {
             expect(capturedAuth!.error).toBe('Verification failed. Please try again.');
             expect(capturedAuth!.isAuthenticated).toBe(false);
 
-            component!.unmount();
+            await renderer.act(async () => {
+                component!.unmount();
+            });
         });
     });
 });
