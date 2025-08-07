@@ -60,6 +60,31 @@ const TestComponent = ({ onRender }: { onRender?: (auth: ReturnType<typeof useAu
     );
 };
 
+// Helper function to create component with auth context and wait for it to be ready
+const createAuthTestComponent = async (): Promise<{
+    component: renderer.ReactTestRenderer;
+    capturedAuth: ReturnType<typeof useAuth>;
+}> => {
+    let capturedAuth: ReturnType<typeof useAuth> | null = null;
+
+    const component = renderer.create(
+        <AuthProvider>
+            <TestComponent onRender={(auth) => { capturedAuth = auth; }} />
+        </AuthProvider>
+    );
+
+    // Wait for the component to render and context to be available
+    await renderer.act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+    });
+
+    if (!capturedAuth) {
+        throw new Error('Failed to capture auth context');
+    }
+
+    return { component, capturedAuth };
+};
+
 describe('AuthContext', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -189,19 +214,13 @@ describe('AuthContext', () => {
                 message: 'Email send failed'
             });
 
-            let capturedAuth: ReturnType<typeof useAuth> | null = null;
+            const { component, capturedAuth } = await createAuthTestComponent();
 
-            const component = renderer.create(
-                <AuthProvider>
-                    <TestComponent onRender={(auth) => { capturedAuth = auth; }} />
-                </AuthProvider>
-            );
+            await renderer.act(async () => {
+                await capturedAuth.login('invalid@example.com');
+            });
 
-            expect(capturedAuth).not.toBeNull();
-
-            await capturedAuth!.login('invalid@example.com');
-
-            expect(capturedAuth!.error).toBe('Email send failed');
+            expect(capturedAuth.error).toBe('Email send failed');
 
             component.unmount();
         });

@@ -49,7 +49,13 @@ export class AuthStorage {
                 return { token: null, email: null };
             }
 
-            const token: AuthToken = JSON.parse(tokenString);
+            const parsedToken: AuthToken = JSON.parse(tokenString);
+
+            // Convert expiresAt string back to Date object if it exists
+            const token: AuthToken = {
+                ...parsedToken,
+                expiresAt: parsedToken.expiresAt ? new Date(parsedToken.expiresAt) : parsedToken.expiresAt
+            };
 
             // Add refresh token if available
             if (refreshToken) {

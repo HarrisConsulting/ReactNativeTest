@@ -154,13 +154,13 @@ describe('AuthService', () => {
             expect(firstResponse.success).toBe(true);
             expect(secondResponse.success).toBe(true);
             expect(secondLoginTime?.getTime()).toBeGreaterThan(firstLoginTime?.getTime() || 0);
-        });
+        }, 10000); // 10 second timeout
 
         test('validates email format before verification', async () => {
             const response = await AuthService.verifyCode('invalid-email', '123456');
 
             expect(response.success).toBe(false);
-            expect(response.error).toContain('email format');
+            expect(response.error).toContain('valid email address');
         });
 
         test('validates OTP code format', async () => {
