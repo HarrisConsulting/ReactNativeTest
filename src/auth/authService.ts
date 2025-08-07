@@ -197,17 +197,6 @@ export class AuthService {
         }
     }
 
-    // Simulate magic link verification (future enhancement)
-    static async verifyMagicLink(_token: string): Promise<VerificationResponse> {
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // For now, return not implemented
-        return {
-            success: false,
-            error: 'Magic link authentication not implemented in demo',
-        };
-    }
-
     // Get demo users (for debugging)
     static getDemoUsers(): Map<string, User> {
         return new Map(demoUsers);

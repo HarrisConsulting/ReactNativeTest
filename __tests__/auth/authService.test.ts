@@ -223,15 +223,6 @@ describe('AuthService', () => {
         });
     });
 
-    describe('verifyMagicLink', () => {
-        test('returns not implemented for magic links', async () => {
-            const response = await AuthService.verifyMagicLink('any-token');
-
-            expect(response.success).toBe(false);
-            expect(response.error).toContain('not implemented');
-        });
-    });
-
     describe('demo data management', () => {
         test('can retrieve demo users', () => {
             const users = AuthService.getDemoUsers();

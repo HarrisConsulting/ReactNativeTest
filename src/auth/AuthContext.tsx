@@ -249,44 +249,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         dispatch({ type: 'AUTH_CLEAR_ERROR' });
     };
 
-    const handleMagicLink = async (url: string): Promise<VerificationResponse> => {
-        try {
-            dispatch({ type: 'AUTH_START_LOADING' });
-
-            const response = await SupabaseAuthService.handleMagicLink(url);
-
-            if (response.success && response.user && response.token) {
-                // Store credentials for future sessions
-                const token = {
-                    token: response.token,
-                    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
-                };
-
-                await AuthStorage.storeCredentials(token, response.user.email);
-
-                dispatch({
-                    type: 'AUTH_VERIFY_SUCCESS',
-                    payload: { user: response.user }
-                });
-            } else {
-                dispatch({
-                    type: 'AUTH_VERIFY_ERROR',
-                    payload: { error: response.error || 'Magic link authentication failed' }
-                });
-            }
-
-            return response;
-        } catch (error) {
-            const errorMessage = 'Magic link authentication failed. Please try again.';
-            dispatch({ type: 'AUTH_VERIFY_ERROR', payload: { error: errorMessage } });
-
-            return {
-                success: false,
-                error: errorMessage,
-            };
-        }
-    };
-
     const checkAuthStatus = async (): Promise<void> => {
         await checkExistingSession();
     };
@@ -298,7 +260,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logout,
         clearError,
         checkAuthStatus,
-        handleMagicLink,
     };
 
     return (

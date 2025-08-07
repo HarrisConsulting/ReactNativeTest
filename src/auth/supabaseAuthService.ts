@@ -38,10 +38,10 @@ export class SupabaseAuthService {
         }
     }
 
-    // Send magic link email (with rate limiting)
+    // Send OTP code email (with rate limiting)
     static sendLoginEmail = withRateLimit(
         async (email: string): Promise<LoginResponse> => {
-            authPerformanceTracker.start('send-magic-link');
+            authPerformanceTracker.start('send-otp-code');
 
             try {
                 // Check network connectivity first
@@ -63,51 +63,47 @@ export class SupabaseAuthService {
                 }
 
                 const normalizedEmail = normalizeEmail(email);
-                logAuthDebug('send-magic-link-start', { email: normalizedEmail });
+                logAuthDebug('send-otp-code-start', { email: normalizedEmail });
 
                 // Check if email is whitelisted
                 const isWhitelisted = await this.isEmailWhitelisted(normalizedEmail);
                 if (!isWhitelisted) {
-                    logAuthDebug('send-magic-link-not-whitelisted', { email: normalizedEmail });
+                    logAuthDebug('send-otp-code-not-whitelisted', { email: normalizedEmail });
                     return {
                         success: false,
                         message: 'Email address is not authorized for access.',
                     };
                 }
 
-                // Send magic link
+                // Send OTP code via email (minimal configuration for OTP-only)
                 const { error } = await supabase.auth.signInWithOtp({
                     email: normalizedEmail,
-                    options: {
-                        // This should be your app's deep link URL
-                        emailRedirectTo: 'reactnativetest://auth/callback',
-                    },
                 });
 
                 if (error) {
-                    logAuthError('send-magic-link-error', error, { email: normalizedEmail });
+                    logAuthError('send-otp-code-error', error, { email: normalizedEmail });
                     return {
                         success: false,
                         message: 'Failed to send verification email. Please try again.',
                     };
                 }
 
-                logAuthDebug('send-magic-link-success', { email: normalizedEmail });
+                logAuthDebug('send-otp-code-success', { email: normalizedEmail });
                 return {
                     success: true,
-                    message: `Verification email sent to ${email}`,
+                    message: `Verification code sent to ${email}`,
                 };
             } catch (error) {
-                logAuthError('send-magic-link-exception', error, { email });
+                logAuthError('send-otp-code-exception', error, { email });
                 return {
                     success: false,
                     message: 'Failed to send verification email. Please try again.',
                 };
             } finally {
-                authPerformanceTracker.end('send-magic-link');
+                authPerformanceTracker.end('send-otp-code');
             }
         },
-        'send-magic-link',
+        'send-otp-code',
         60000 // 1 minute rate limit
     );
 
@@ -156,129 +152,6 @@ export class SupabaseAuthService {
             return {
                 success: false,
                 error: 'Verification failed. Please try again.',
-            };
-        }
-    }
-
-    // Handle magic link authentication (from deep link)
-    static async handleMagicLink(url: string): Promise<VerificationResponse> {
-        try {
-            // Extract tokens from URL
-            const urlObj = new URL(url);
-            const accessToken = urlObj.searchParams.get('access_token');
-            const refreshToken = urlObj.searchParams.get('refresh_token');
-            const errorCode = urlObj.searchParams.get('error');
-            const errorDescription = urlObj.searchParams.get('error_description');
-
-            // Handle Supabase errors in the URL
-            if (errorCode) {
-                if (errorCode === 'access_denied') {
-                    return {
-                        success: false,
-                        error: 'Access denied. Please check your email and try again.',
-                    };
-                }
-
-                if (errorDescription?.includes('expired')) {
-                    return {
-                        success: false,
-                        error: 'expired',
-                        message: 'This magic link has expired. Please request a new one.',
-                    };
-                }
-
-                if (errorDescription?.includes('already_used') || errorDescription?.includes('invalid')) {
-                    return {
-                        success: false,
-                        error: 'used',
-                        message: 'This magic link has already been used or is invalid. Please request a new one.',
-                    };
-                }
-
-                return {
-                    success: false,
-                    error: errorDescription || 'Authentication failed. Please try again.',
-                };
-            }
-
-            if (!accessToken || !refreshToken) {
-                return {
-                    success: false,
-                    error: 'Invalid magic link format. Please request a new one.',
-                };
-            }
-
-            // Set session
-            const { data, error } = await supabase.auth.setSession({
-                access_token: accessToken,
-                refresh_token: refreshToken,
-            });
-
-            if (error) {
-                console.error('Magic link session error:', error);
-
-                // Handle specific session errors
-                if (error.message.includes('expired')) {
-                    return {
-                        success: false,
-                        error: 'expired',
-                        message: 'This magic link has expired. Please request a new one.',
-                    };
-                }
-
-                if (error.message.includes('invalid')) {
-                    return {
-                        success: false,
-                        error: 'invalid',
-                        message: 'This magic link is invalid. Please request a new one.',
-                    };
-                }
-
-                return {
-                    success: false,
-                    error: 'Failed to authenticate with magic link. Please try again.',
-                };
-            }
-
-            if (!data.session || !data.user) {
-                return {
-                    success: false,
-                    error: 'Authentication session could not be established. Please try again.',
-                };
-            }
-
-            // Create or update user profile
-            await this.createOrUpdateUserProfile(data.user);
-
-            const user: User = {
-                id: data.user.id,
-                email: data.user.email!,
-                createdAt: new Date(data.user.created_at),
-                lastLoginAt: new Date(),
-                isVerified: true,
-            };
-
-            return {
-                success: true,
-                user,
-                token: data.session.access_token,
-            };
-        } catch (error) {
-            console.error('Magic link handling error:', error);
-
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-            if (errorMessage.includes('Network')) {
-                return {
-                    success: false,
-                    error: 'network',
-                    message: 'Network error. Please check your connection and try again.',
-                };
-            }
-
-            return {
-                success: false,
-                error: 'Failed to process magic link. Please try again.',
             };
         }
     }

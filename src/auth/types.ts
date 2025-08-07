@@ -52,7 +52,6 @@ export interface AuthActions {
     logout: () => Promise<void>;
     clearError: () => void;
     checkAuthStatus: () => Promise<void>;
-    handleMagicLink: (url: string) => Promise<VerificationResponse>;
 }
 
 export interface AuthContextType extends AuthState, AuthActions { }
@@ -67,7 +66,6 @@ export interface AuthConfig {
     tokenExpiration: number;
     maxLoginAttempts: number;
     codeLength: number;
-    magicLinkExpiration: number;
 }
 
 // Navigation parameter types for auth flow

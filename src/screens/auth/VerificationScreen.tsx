@@ -10,7 +10,6 @@ import {
     Platform,
     ScrollView,
     ActivityIndicator,
-    Linking,
 } from 'react-native';
 import { useAuth } from '../../auth/hooks';
 import { validateOTPCode } from '../../auth/utils';
@@ -38,7 +37,7 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
     const [isLoading, setIsLoading] = useState(false);
     const [codeError, setCodeError] = useState('');
     const [resendCountdown, setResendCountdown] = useState(0);
-    const { verify, login, handleMagicLink } = useAuth();
+    const { verify, login } = useAuth();
 
     const email = route.params?.email || '';
     const returnTo = route.params?.returnTo;
@@ -57,74 +56,6 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ navigation, rou
     useEffect(() => {
         setResendCountdown(60); // 60 second countdown
     }, []);
-
-    // Handle magic link deep links
-    useEffect(() => {
-        const handleDeepLink = async (url: string) => {
-            console.log('📱 Deep link received:', url);
-
-            // Check if it's an auth callback URL
-            if (url.includes('auth/callback')) {
-                setIsLoading(true);
-
-                try {
-                    const result = await handleMagicLink(url);
-
-                    if (result.success) {
-                        Alert.alert(
-                            'Welcome!',
-                            'You have been successfully authenticated via magic link.',
-                            [
-                                {
-                                    text: 'Continue',
-                                    onPress: () => {
-                                        if (returnTo === 'Game') {
-                                            navigation.navigate('Game');
-                                        } else if (returnTo === 'Profile') {
-                                            navigation.navigate('Profile');
-                                        } else {
-                                            // Navigate to profile by default
-                                            navigation.navigate('Profile');
-                                        }
-                                    },
-                                },
-                            ]
-                        );
-                    } else {
-                        Alert.alert(
-                            'Authentication Failed',
-                            result.error || 'Magic link authentication failed. Please try entering the code manually.',
-                            [{ text: 'OK' }]
-                        );
-                    }
-                } catch (error) {
-                    Alert.alert(
-                        'Authentication Error',
-                        'Failed to process magic link. Please try entering the code manually.',
-                        [{ text: 'OK' }]
-                    );
-                } finally {
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        // Get the initial URL when the app is opened from a deep link
-        Linking.getInitialURL().then((url) => {
-            if (url) {
-                handleDeepLink(url);
-            }
-        });
-
-        // Listen for subsequent deep links while the app is running
-        const subscription = Linking.addEventListener('url', (event) => {
-            handleDeepLink(event.url);
-        });
-
-        return () => {
-            subscription?.remove();
-        };
-    }, [handleMagicLink, navigation, returnTo]);
 
     const handleCodeChange = (text: string) => {
         // Only allow numeric input and limit to 6 digits

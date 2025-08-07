@@ -26,7 +26,7 @@ export const supabase: SupabaseClient = createClient(
         auth: {
             autoRefreshToken: true,
             persistSession: true,
-            detectSessionInUrl: true, // Enable for magic link handling
+            detectSessionInUrl: false, // Disabled - using OTP codes instead of magic links
         },
         global: {
             headers: {
