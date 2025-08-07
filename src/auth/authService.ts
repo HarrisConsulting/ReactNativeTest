@@ -19,6 +19,7 @@ const DEMO_CONFIG = {
 // In-memory storage for demo purposes
 let demoUsers: Map<string, User> = new Map();
 let pendingVerifications: Map<string, { code: string; email: string; timestamp: number }> = new Map();
+let userTokens: Map<string, { token: string; expiresAt: Date }> = new Map(); // Store user tokens
 
 export class AuthService {
     // Simulate sending login email with OTP
@@ -108,9 +109,7 @@ export class AuthService {
                     success: false,
                     error: 'Verification code has expired. Please request a new code.',
                 };
-            }
-
-            // Verify the code
+            }            // Verify the code
             if (pending.code !== code.trim()) {
                 return {
                     success: false,
@@ -139,14 +138,20 @@ export class AuthService {
             }
 
             // Generate authentication token
-            const token = generateDemoToken(normalizedEmail);
+            const tokenData = generateDemoToken(normalizedEmail);
+
+            // Store the token for this user
+            userTokens.set(normalizedEmail, {
+                token: tokenData.token,
+                expiresAt: tokenData.expiresAt
+            });
 
             // Clean up pending verification
             pendingVerifications.delete(normalizedEmail);
 
             return {
                 success: true,
-                token: token.token,
+                token: tokenData.token,
                 user,
             };
         } catch (error) {
@@ -178,10 +183,12 @@ export class AuthService {
 
             // Find user by checking all demo users (simplified for demo)
             for (const [email, user] of demoUsers) {
-                const userToken = generateDemoToken(email);
-                if (userToken.token === token) {
+                const normalizedEmail = email.toLowerCase().trim();
+                const storedToken = userTokens.get(normalizedEmail);
+
+                if (storedToken && storedToken.token === token) {
                     // Check if token is still valid (not expired)
-                    const isExpired = new Date() > userToken.expiresAt;
+                    const isExpired = new Date() > storedToken.expiresAt;
                     if (isExpired) {
                         return { valid: false };
                     }
@@ -206,6 +213,12 @@ export class AuthService {
     static clearDemoData(): void {
         demoUsers.clear();
         pendingVerifications.clear();
+        userTokens.clear();
+    }
+
+    // Get pending verifications (for testing)
+    static getPendingVerifications(): Map<string, { code: string; email: string; timestamp: number }> {
+        return pendingVerifications;
     }
 
     // Resend verification code
