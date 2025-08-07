@@ -7,6 +7,33 @@ export interface User {
     createdAt: Date;
     lastLoginAt: Date;
     isVerified: boolean;
+    preferredName?: string;
+    preferences?: UserPreferences;
+}
+
+export interface UserPreferences {
+    notifications?: NotificationPreferences;
+    device?: DevicePreferences;
+    gameTypes?: GameType[];
+    theme?: 'light' | 'dark';
+    accessibility?: AccessibilityPreferences;
+}
+
+export type GameType = 'Arcade' | 'Strategy' | 'RPG' | 'Puzzle' | 'Action' | 'Sports';
+
+export interface NotificationPreferences {
+    email: boolean;
+    push: boolean;
+}
+
+export interface DevicePreferences {
+    rememberDevice: boolean;
+    sessionExtension?: boolean;
+}
+
+export interface AccessibilityPreferences {
+    fontSize: 'small' | 'medium' | 'large';
+    highContrast: boolean;
 }
 
 export interface AuthToken {
@@ -52,6 +79,9 @@ export interface AuthActions {
     logout: () => Promise<void>;
     clearError: () => void;
     checkAuthStatus: () => Promise<void>;
+    updatePreferredName: (name: string) => Promise<{ success: boolean; error?: string }>;
+    updateUserPreferences: (preferences: Partial<UserPreferences>) => Promise<{ success: boolean; error?: string }>;
+    refreshUserProfile: () => Promise<void>;
 }
 
 export interface AuthContextType extends AuthState, AuthActions { }

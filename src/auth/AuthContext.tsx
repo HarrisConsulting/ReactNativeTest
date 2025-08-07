@@ -253,6 +253,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await checkExistingSession();
     };
 
+    // Placeholder implementations for preference management
+    // These will be properly implemented in Phase 2
+    const updatePreferredName = async (name: string): Promise<{success: boolean; error?: string}> => {
+        // TODO: Implement in Phase 2
+        console.warn('updatePreferredName not yet implemented - Phase 2 feature');
+        return { success: false, error: 'Not implemented yet' };
+    };
+
+    const updateUserPreferences = async (preferences: Partial<import('./types').UserPreferences>): Promise<{success: boolean; error?: string}> => {
+        // TODO: Implement in Phase 2
+        console.warn('updateUserPreferences not yet implemented - Phase 2 feature');
+        return { success: false, error: 'Not implemented yet' };
+    };
+
+    const refreshUserProfile = async (): Promise<void> => {
+        // TODO: Implement in Phase 2
+        console.warn('refreshUserProfile not yet implemented - Phase 2 feature');
+    };
+
     const contextValue: AuthContextType = {
         ...state,
         login,
@@ -260,6 +279,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         logout,
         clearError,
         checkAuthStatus,
+        updatePreferredName,
+        updateUserPreferences,
+        refreshUserProfile,
     };
 
     return (

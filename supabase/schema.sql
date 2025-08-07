@@ -15,6 +15,8 @@ CREATE TABLE user_profiles (
   email TEXT UNIQUE NOT NULL,
   status TEXT DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
   last_login_at TIMESTAMP WITH TIME ZONE,
+  preferred_name TEXT,
+  preferences JSONB DEFAULT '{}',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -48,6 +50,8 @@ CREATE POLICY "Allow profile creation on signup" ON user_profiles
 -- Indexes for performance
 CREATE INDEX idx_email_whitelist_email ON email_whitelist(email);
 CREATE INDEX idx_user_profiles_email ON user_profiles(email);
+CREATE INDEX idx_user_profiles_preferred_name ON user_profiles(preferred_name);
+CREATE INDEX idx_user_profiles_preferences ON user_profiles USING GIN (preferences);
 
 -- Function to check if email is whitelisted (prevents RLS footguns)
 CREATE OR REPLACE FUNCTION check_whitelist(email_input TEXT)
