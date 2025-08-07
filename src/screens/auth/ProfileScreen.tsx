@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,6 +7,8 @@ import {
     Alert,
     ScrollView,
     Switch,
+    TextInput,
+    ActivityIndicator,
 } from 'react-native';
 import { useAuth } from '../../auth/hooks';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -26,10 +28,27 @@ interface ProfileScreenProps {
 }
 
 const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
-    const { user, logout, isAuthenticated } = useAuth();
+    const { user, logout, isAuthenticated, updatePreferredName, updateUserPreferences } = useAuth();
+
+    // Local state for form inputs
+    const [preferredName, setPreferredName] = useState('');
     const [notificationsEnabled, setNotificationsEnabled] = useState(true);
     const [rememberDevice, setRememberDevice] = useState(false);
     const [lastUpdate] = useState(new Date().toLocaleTimeString());
+
+    // Loading states
+    const [isUpdatingName, setIsUpdatingName] = useState(false);
+    const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
+
+    // Initialize form with current user data
+    useEffect(() => {
+        if (user) {
+            setPreferredName(user.preferredName || '');
+            const prefs = user.preferences || {};
+            setNotificationsEnabled(prefs.notifications?.email ?? true);
+            setRememberDevice(prefs.device?.rememberDevice ?? false);
+        }
+    }, [user]);
 
     const handleLogout = () => {
         Alert.alert(
@@ -91,25 +110,86 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
         navigation.navigate('Game');
     };
 
-    const handleNotificationToggle = (value: boolean) => {
-        setNotificationsEnabled(value);
-        Alert.alert(
-            'Notifications Updated',
-            `Email notifications are now ${value ? 'enabled' : 'disabled'}.`,
-            [{ text: 'OK' }]
-        );
+    const handleUpdatePreferredName = async () => {
+        if (!preferredName.trim()) {
+            Alert.alert('Error', 'Please enter a preferred name.');
+            return;
+        }
+
+        setIsUpdatingName(true);
+        try {
+            const result = await updatePreferredName(preferredName.trim());
+            if (result.success) {
+                Alert.alert('Success', 'Your preferred name has been updated!');
+            } else {
+                Alert.alert('Error', result.error || 'Failed to update preferred name. Please try again.');
+            }
+        } catch (error) {
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        } finally {
+            setIsUpdatingName(false);
+        }
     };
 
-    const handleRememberDeviceToggle = (value: boolean) => {
+    const handleNotificationToggle = async (value: boolean) => {
+        setIsUpdatingPreferences(true);
+        setNotificationsEnabled(value);
+
+        try {
+            const newPreferences = {
+                notifications: { email: value, push: false }
+            };
+
+            const result = await updateUserPreferences(newPreferences);
+            if (result.success) {
+                Alert.alert(
+                    'Notifications Updated',
+                    `Email notifications are now ${value ? 'enabled' : 'disabled'}.`
+                );
+            } else {
+                // Revert on failure
+                setNotificationsEnabled(!value);
+                Alert.alert('Error', result.error || 'Failed to update preferences. Please try again.');
+            }
+        } catch (error) {
+            // Revert on failure
+            setNotificationsEnabled(!value);
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        } finally {
+            setIsUpdatingPreferences(false);
+        }
+    };
+
+    const handleRememberDeviceToggle = async (value: boolean) => {
+        setIsUpdatingPreferences(true);
         setRememberDevice(value);
-        Alert.alert(
-            'Device Preference Updated',
-            `Device remembering is now ${value ? 'enabled' : 'disabled'}. ${value
-                ? 'Your login sessions will last longer on this device.'
-                : 'You will need to verify your email more frequently.'
-            }`,
-            [{ text: 'OK' }]
-        );
+
+        try {
+            const newPreferences = {
+                device: { rememberDevice: value, sessionExtension: value }
+            };
+
+            const result = await updateUserPreferences(newPreferences);
+            if (result.success) {
+                Alert.alert(
+                    'Device Preference Updated',
+                    `Device remembering is now ${value ? 'enabled' : 'disabled'}. ${value
+                        ? 'Your login sessions will last longer on this device.'
+                        : 'You will need to verify your email more frequently.'
+                    }`
+                );
+            } else {
+                // Revert on failure
+                setRememberDevice(!value);
+                Alert.alert('Error', result.error || 'Failed to update preferences. Please try again.');
+            }
+        } catch (error) {
+            // Revert on failure
+            setRememberDevice(!value);
+            Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+        } finally {
+            setIsUpdatingPreferences(false);
+        }
     };
 
     if (!isAuthenticated || !user) {
@@ -158,6 +238,50 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
             </View>
 
             <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Personal Information</Text>
+                <View style={styles.card}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.inputLabel}>Preferred Name</Text>
+                        <Text style={styles.inputDescription}>
+                            How you'd like to be addressed in the app
+                        </Text>
+                        <View style={styles.inputRow}>
+                            <TextInput
+                                style={styles.textInput}
+                                value={preferredName}
+                                onChangeText={setPreferredName}
+                                placeholder={`Enter preferred name (optional)`}
+                                placeholderTextColor="#999"
+                                maxLength={50}
+                                autoCapitalize="words"
+                                autoCorrect={false}
+                                editable={!isUpdatingName}
+                            />
+                            <TouchableOpacity
+                                style={[
+                                    styles.updateButton,
+                                    isUpdatingName && styles.updateButtonDisabled
+                                ]}
+                                onPress={handleUpdatePreferredName}
+                                disabled={isUpdatingName}
+                            >
+                                {isUpdatingName ? (
+                                    <ActivityIndicator size="small" color="white" />
+                                ) : (
+                                    <Text style={styles.updateButtonText}>Save</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                        {user.preferredName && (
+                            <Text style={styles.currentValueText}>
+                                Current: {user.preferredName}
+                            </Text>
+                        )}
+                    </View>
+                </View>
+            </View>
+
+            <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Preferences</Text>
                 <View style={styles.card}>
                     <View style={styles.settingRow}>
@@ -167,12 +291,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                                 Receive verification codes and account updates
                             </Text>
                         </View>
-                        <Switch
-                            value={notificationsEnabled}
-                            onValueChange={handleNotificationToggle}
-                            trackColor={{ false: '#767577', true: '#81b0ff' }}
-                            thumbColor={notificationsEnabled ? '#34C759' : '#f4f3f4'}
-                        />
+                        {isUpdatingPreferences ? (
+                            <ActivityIndicator size="small" color="#007AFF" />
+                        ) : (
+                            <Switch
+                                value={notificationsEnabled}
+                                onValueChange={handleNotificationToggle}
+                                trackColor={{ false: '#767577', true: '#81b0ff' }}
+                                thumbColor={notificationsEnabled ? '#34C759' : '#f4f3f4'}
+                                disabled={isUpdatingPreferences}
+                            />
+                        )}
                     </View>
 
                     <View style={styles.settingRow}>
@@ -182,12 +311,17 @@ const ProfileScreen: React.FC<ProfileScreenProps> = ({ navigation }) => {
                                 Extend session duration on this device
                             </Text>
                         </View>
-                        <Switch
-                            value={rememberDevice}
-                            onValueChange={handleRememberDeviceToggle}
-                            trackColor={{ false: '#767577', true: '#81b0ff' }}
-                            thumbColor={rememberDevice ? '#34C759' : '#f4f3f4'}
-                        />
+                        {isUpdatingPreferences ? (
+                            <ActivityIndicator size="small" color="#007AFF" />
+                        ) : (
+                            <Switch
+                                value={rememberDevice}
+                                onValueChange={handleRememberDeviceToggle}
+                                trackColor={{ false: '#767577', true: '#81b0ff' }}
+                                thumbColor={rememberDevice ? '#34C759' : '#f4f3f4'}
+                                disabled={isUpdatingPreferences}
+                            />
+                        )}
                     </View>
                 </View>
             </View>
@@ -370,6 +504,59 @@ const styles = StyleSheet.create({
     },
     statusPending: {
         color: '#FF9500',
+    },
+    inputGroup: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 16,
+        color: '#333',
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    inputDescription: {
+        fontSize: 14,
+        color: '#666',
+        marginBottom: 12,
+    },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    textInput: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#e0e0e0',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        fontSize: 16,
+        backgroundColor: 'white',
+        color: '#333',
+    },
+    updateButton: {
+        backgroundColor: '#007AFF',
+        borderRadius: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        minWidth: 60,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    updateButtonDisabled: {
+        backgroundColor: '#a0a0a0',
+    },
+    updateButtonText: {
+        color: 'white',
+        fontSize: 14,
+        fontWeight: '600',
+    },
+    currentValueText: {
+        fontSize: 12,
+        color: '#666',
+        marginTop: 6,
+        fontStyle: 'italic',
     },
 });
 

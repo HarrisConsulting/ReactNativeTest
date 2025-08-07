@@ -32,7 +32,8 @@ type AuthAction =
     | { type: 'AUTH_VERIFY_ERROR'; payload: { error: string } }
     | { type: 'AUTH_LOGOUT' }
     | { type: 'AUTH_CLEAR_ERROR' }
-    | { type: 'AUTH_RESTORE_SESSION'; payload: { user: User } };
+    | { type: 'AUTH_RESTORE_SESSION'; payload: { user: User } }
+    | { type: 'AUTH_UPDATE_PROFILE'; payload: { preferredName?: string; preferences?: import('./types').UserPreferences } };
 
 // Authentication reducer
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
@@ -114,6 +115,16 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
                 user: action.payload.user,
                 isLoading: false,
                 error: null,
+            };
+
+        case 'AUTH_UPDATE_PROFILE':
+            return {
+                ...state,
+                user: state.user ? {
+                    ...state.user,
+                    preferredName: action.payload.preferredName ?? state.user.preferredName,
+                    preferences: action.payload.preferences ?? state.user.preferences
+                } : null,
             };
 
         default:
@@ -253,23 +264,56 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         await checkExistingSession();
     };
 
-    // Placeholder implementations for preference management
-    // These will be properly implemented in Phase 2
+    // Real implementations for preference management
     const updatePreferredName = async (name: string): Promise<{ success: boolean; error?: string }> => {
-        // TODO: Implement in Phase 2
-        console.warn('updatePreferredName not yet implemented - Phase 2 feature');
-        return { success: false, error: 'Not implemented yet' };
+        if (!name.trim()) {
+            return { success: false, error: 'Preferred name cannot be empty' };
+        }
+
+        if (name.trim().length > 50) {
+            return { success: false, error: 'Preferred name must be 50 characters or less' };
+        }
+
+        const result = await SupabaseAuthService.updatePreferredName(name);
+
+        if (result.success) {
+            // Refresh user profile to get updated data
+            await refreshUserProfile();
+        }
+
+        return result;
     };
 
     const updateUserPreferences = async (preferences: Partial<import('./types').UserPreferences>): Promise<{ success: boolean; error?: string }> => {
-        // TODO: Implement in Phase 2
-        console.warn('updateUserPreferences not yet implemented - Phase 2 feature');
-        return { success: false, error: 'Not implemented yet' };
+        const result = await SupabaseAuthService.updateUserPreferences(preferences);
+
+        if (result.success) {
+            // Refresh user profile to get updated data
+            await refreshUserProfile();
+        }
+
+        return result;
     };
 
     const refreshUserProfile = async (): Promise<void> => {
-        // TODO: Implement in Phase 2
-        console.warn('refreshUserProfile not yet implemented - Phase 2 feature');
+        if (!state.user?.id) return;
+
+        try {
+            const profile = await SupabaseAuthService.getUserProfile(state.user.id);
+
+            if (profile) {
+                // Update the user state with profile data using dispatch
+                dispatch({
+                    type: 'AUTH_UPDATE_PROFILE',
+                    payload: {
+                        preferredName: profile.preferredName,
+                        preferences: profile.preferences
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Failed to refresh user profile:', error);
+        }
     };
 
     const contextValue: AuthContextType = {

@@ -27,6 +27,16 @@ const HomeScreen = () => {
   const [metroStatus] = useState('Running'); // Remove setMetroStatus since it's not used
   const [lastBundleCheck, setLastBundleCheck] = useState(new Date().toLocaleTimeString());
 
+  // Helper function to get the display name for personalization
+  const getDisplayName = (): string => {
+    if (!user) return 'User';
+    if (user.preferredName && user.preferredName.trim()) {
+      return user.preferredName;
+    }
+    // Fallback to email prefix (part before @)
+    return user.email.split('@')[0];
+  };
+
   const handleNavigationDemo = () => {
     Alert.alert(
       'Navigation Demo',
@@ -134,7 +144,9 @@ const HomeScreen = () => {
 
   const handleAuthenticationDemo = () => {
     const authStatus = isAuthenticated ? 'Authenticated' : 'Not Authenticated';
-    const userInfo = user ? `\n\nUser: ${user.email}\nVerified: ${user.isVerified ? 'Yes' : 'No'}` : '';
+    const userInfo = user
+      ? `\n\nUser: ${getDisplayName()} (${user.email})\nVerified: ${user.isVerified ? 'Yes' : 'No'}`
+      : '';
 
     Alert.alert(
       'Email Authentication System',
@@ -264,7 +276,7 @@ const HomeScreen = () => {
             </Text>
             <Text style={styles.protectedButtonSubtext}>
               {isAuthenticated
-                ? `Welcome, ${user?.email?.split('@')[0] || 'User'}!`
+                ? `Welcome, ${getDisplayName()}!`
                 : 'Requires email authentication'
               }
             </Text>

@@ -32,9 +32,18 @@ CREATE TABLE IF NOT EXISTS user_profiles (
 );
 
 -- Step 3: Add constraint for preferred name validation
-ALTER TABLE user_profiles 
-ADD CONSTRAINT IF NOT EXISTS chk_preferred_name_length 
-CHECK (preferred_name IS NULL OR (LENGTH(TRIM(preferred_name)) > 0 AND LENGTH(TRIM(preferred_name)) <= 50));
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints 
+    WHERE constraint_name = 'chk_preferred_name_length' 
+    AND table_name = 'user_profiles'
+  ) THEN
+    ALTER TABLE user_profiles 
+    ADD CONSTRAINT chk_preferred_name_length 
+    CHECK (preferred_name IS NULL OR (LENGTH(TRIM(preferred_name)) > 0 AND LENGTH(TRIM(preferred_name)) <= 50));
+  END IF;
+END $$;
 
 -- Step 4: Enable Row Level Security
 ALTER TABLE email_whitelist ENABLE ROW LEVEL SECURITY;

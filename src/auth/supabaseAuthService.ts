@@ -215,4 +215,102 @@ export class SupabaseAuthService {
             console.error('Sign out failed:', error);
         }
     }
+
+    // Update user preferred name
+    static async updatePreferredName(preferredName: string): Promise<{ success: boolean; error?: string }> {
+        try {
+            const session = await this.getCurrentSession();
+            if (!session?.user) {
+                return { success: false, error: 'No authenticated user' };
+            }
+
+            logAuthDebug('update-preferred-name-start', { userId: session.user.id, nameLength: preferredName.length });
+
+            const { data, error } = await supabase.rpc('update_user_preferences', {
+                user_id: session.user.id,
+                new_preferred_name: preferredName.trim(),
+                new_preferences: null
+            });
+
+            if (error) {
+                logAuthError('update-preferred-name-error', error, { userId: session.user.id });
+                return { success: false, error: error.message };
+            }
+
+            if (data === false) {
+                return { success: false, error: 'Failed to update preferred name' };
+            }
+
+            logAuthDebug('update-preferred-name-success', { userId: session.user.id });
+            return { success: true };
+        } catch (error) {
+            logAuthError('update-preferred-name-exception', error);
+            return { success: false, error: 'Network error occurred' };
+        }
+    }
+
+    // Update user preferences (fixes existing broken preferences)
+    static async updateUserPreferences(preferences: Partial<import('./types').UserPreferences>): Promise<{ success: boolean; error?: string }> {
+        try {
+            const session = await this.getCurrentSession();
+            if (!session?.user) {
+                return { success: false, error: 'No authenticated user' };
+            }
+
+            logAuthDebug('update-preferences-start', { userId: session.user.id, preferences });
+
+            const { data, error } = await supabase.rpc('update_user_preferences', {
+                user_id: session.user.id,
+                new_preferred_name: null,
+                new_preferences: preferences
+            });
+
+            if (error) {
+                logAuthError('update-preferences-error', error, { userId: session.user.id });
+                return { success: false, error: error.message };
+            }
+
+            if (data === false) {
+                return { success: false, error: 'Failed to update preferences' };
+            }
+
+            logAuthDebug('update-preferences-success', { userId: session.user.id });
+            return { success: true };
+        } catch (error) {
+            logAuthError('update-preferences-exception', error);
+            return { success: false, error: 'Network error occurred' };
+        }
+    }
+
+    // Get user profile with preferences
+    static async getUserProfile(userId: string): Promise<{ preferredName?: string; preferences?: import('./types').UserPreferences } | null> {
+        try {
+            logAuthDebug('get-profile-start', { userId });
+
+            const { data, error } = await supabase.rpc('get_user_preferences', {
+                user_id: userId
+            });
+
+            if (error) {
+                logAuthError('get-profile-error', error, { userId });
+                return null;
+            }
+
+            if (!data || data.length === 0) {
+                logAuthDebug('get-profile-no-data', { userId });
+                return null;
+            }
+
+            const profile = data[0];
+            logAuthDebug('get-profile-success', { userId, hasPreferredName: !!profile.preferred_name });
+
+            return {
+                preferredName: profile.preferred_name,
+                preferences: profile.preferences || {}
+            };
+        } catch (error) {
+            logAuthError('get-profile-exception', error, { userId });
+            return null;
+        }
+    }
 }

@@ -33,6 +33,16 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation }) => {
     const [gameStartTime, setGameStartTime] = useState<Date | null>(null);
     const scaleAnim = new Animated.Value(1);
 
+    // Helper function to get the display name for personalization
+    const getDisplayName = (): string => {
+        if (!user) return 'Player';
+        if (user.preferredName && user.preferredName.trim()) {
+            return user.preferredName;
+        }
+        // Fallback to email prefix (part before @)
+        return user.email.split('@')[0];
+    };
+
     useEffect(() => {
         if (isPlaying) {
             const interval = setInterval(() => {
@@ -63,7 +73,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation }) => {
 
         Alert.alert(
             'Game Started!',
-            `Welcome to the Protected Game, ${user?.email || 'Player'}! Your score will automatically increase. Try to reach the next level!`,
+            `Welcome to the Protected Game, ${getDisplayName()}! Your score will automatically increase. Try to reach the next level!`,
             [{ text: 'Let\'s Play!' }]
         );
     };
@@ -146,7 +156,7 @@ const GameScreen: React.FC<GameScreenProps> = ({ navigation }) => {
             <View style={styles.header}>
                 <Text style={styles.title}>🎮 Protected Game</Text>
                 <Text style={styles.subtitle}>
-                    Welcome, {user.email}! You have successfully accessed protected content.
+                    Welcome, {getDisplayName()}! You have successfully accessed protected content.
                 </Text>
             </View>
 

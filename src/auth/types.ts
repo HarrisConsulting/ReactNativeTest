@@ -14,11 +14,33 @@ export interface User {
 export interface UserPreferences {
     notifications?: NotificationPreferences;
     device?: DevicePreferences;
-    gameTypes?: GameType[];
+    gamePreferences?: GamePreferences;
     theme?: 'light' | 'dark';
     accessibility?: AccessibilityPreferences;
 }
 
+// Comprehensive Game Preferences System
+export interface GamePreferences {
+    strategyBoardGames?: StrategyBoardGame[];
+    puzzleGames?: PuzzleGame[];
+    arcadeGames?: ArcadeGame[];
+    actionGames?: ActionGame[];
+    sportsGames?: SportsGame[];
+    skillLevel?: SkillLevel;
+    preferredSessionLength?: SessionLength;
+    competitiveMode?: boolean;
+}
+
+export type StrategyBoardGame = 'Chess' | 'Checkers' | 'Backgammon' | 'Go' | 'Othello' | 'Shogi';
+export type PuzzleGame = 'Tetris' | 'Rubik\'s Cube' | 'Sudoku' | 'Crossword' | 'Jigsaw' | 'Word Search';
+export type ArcadeGame = 'Pac-Man' | 'Space Invaders' | 'Donkey Kong' | 'Frogger' | 'Asteroids' | 'Centipede';
+export type ActionGame = 'Call of Duty' | 'God of War' | 'Street Fighter' | 'Mortal Kombat' | 'Tekken' | 'Doom';
+export type SportsGame = 'Soccer' | 'Golf' | 'Tennis' | 'Basketball' | 'Baseball' | 'Football';
+
+export type SkillLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+export type SessionLength = '5-15 minutes' | '15-30 minutes' | '30-60 minutes' | '1+ hours';
+
+// Legacy support for simple game types (maintained for backward compatibility)
 export type GameType = 'Arcade' | 'Strategy' | 'RPG' | 'Puzzle' | 'Action' | 'Sports';
 
 export interface NotificationPreferences {
