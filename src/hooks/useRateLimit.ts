@@ -87,6 +87,10 @@ class RateLimitStore {
     clear(key: string): void {
         this.storage.delete(key);
     }
+
+    clearAll(): void {
+        this.storage.clear();
+    }
 }
 
 export const rateLimitStore = new RateLimitStore();

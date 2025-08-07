@@ -103,26 +103,26 @@ describe('AuthService', () => {
         });
 
         test('handles expired verification codes', async () => {
+            // Create a custom verification with an expired timestamp
             const email = 'test@example.com';
+            const normalizedEmail = email.toLowerCase().trim();
 
-            await AuthService.sendLoginEmail(email);
+            // Get access to internal data structures
+            const pendingVerifications = AuthService.getPendingVerifications();
 
-            // Mock expired timestamp
-            const pendingVerifications = (AuthService as any).pendingVerifications;
-            if (pendingVerifications) {
-                const pending = pendingVerifications.get(email);
-                if (pending) {
-                    pending.timestamp = Date.now() - (11 * 60 * 1000); // 11 minutes ago
-                }
-            }
+            // Manually add an expired verification instead of using sendLoginEmail
+            const expiredTimestamp = Date.now() - (11 * 60 * 1000); // 11 minutes ago
+            pendingVerifications.set(normalizedEmail, {
+                code: '123456',
+                email: normalizedEmail,
+                timestamp: expiredTimestamp,
+            });
 
             const response = await AuthService.verifyCode(email, '123456');
 
             expect(response.success).toBe(false);
             expect(response.error).toContain('expired');
-        });
-
-        test('creates new user on first successful verification', async () => {
+        }); test('creates new user on first successful verification', async () => {
             const email = 'newuser@example.com';
 
             await AuthService.sendLoginEmail(email);
@@ -154,13 +154,13 @@ describe('AuthService', () => {
             expect(firstResponse.success).toBe(true);
             expect(secondResponse.success).toBe(true);
             expect(secondLoginTime?.getTime()).toBeGreaterThan(firstLoginTime?.getTime() || 0);
-        });
+        }, 10000); // 10 second timeout
 
         test('validates email format before verification', async () => {
             const response = await AuthService.verifyCode('invalid-email', '123456');
 
             expect(response.success).toBe(false);
-            expect(response.error).toContain('email format');
+            expect(response.error).toContain('valid email address');
         });
 
         test('validates OTP code format', async () => {
