@@ -728,6 +728,164 @@ const showProjectStats = () => {
 
 ---
 
+## 🚀 **FEATURE DEVELOPMENT PATTERNS**
+
+### **Preferred Name & Preferences Implementation (Reference Pattern)**
+
+**Reference Document**: `docs/authentication/preferred-name-and-preferences-implementation-plan.md`
+
+```typescript
+// ✅ REQUIRED: Server-side preference storage pattern
+interface UserPreferences {
+  notifications?: {
+    email: boolean;
+    push: boolean;
+  };
+  device?: {
+    rememberDevice: boolean;
+    sessionExtension: boolean;
+  };
+  gameTypes?: GameType[];
+  theme?: 'light' | 'dark';
+  accessibility?: {
+    fontSize: 'small' | 'medium' | 'large';
+    highContrast: boolean;
+  };
+}
+
+// ✅ ALWAYS: Use JSONB for scalable preference storage
+ALTER TABLE user_profiles 
+ADD COLUMN preferred_name TEXT,
+ADD COLUMN preferences JSONB DEFAULT '{}';
+
+// ✅ ALWAYS: Create proper indexes for performance
+CREATE INDEX idx_user_profiles_preferences ON user_profiles USING GIN (preferences);
+```
+
+### **Critical Implementation Requirements**
+
+```typescript
+// ✅ REQUIRED: Fix existing broken preferences with server persistence
+const handlePreferenceUpdate = async (newPreferences: Partial<UserPreferences>) => {
+  setIsLoading(true);
+  const result = await updateUserPreferences(newPreferences);
+  
+  if (result.success) {
+    Alert.alert('Preferences Updated', 'Your preferences have been saved.');
+    await refreshUserProfile(); // Refresh from server
+  } else {
+    Alert.alert('Error', result.error || 'Failed to update preferences');
+  }
+  setIsLoading(false);
+};
+
+// ❌ NEVER: Use only local state for preferences (current broken pattern)
+const [notificationsEnabled, setNotificationsEnabled] = useState(true); // NO PERSISTENCE
+```
+
+### **Database Function Patterns (MANDATORY)**
+
+```sql
+-- ✅ REQUIRED: Use SECURITY DEFINER functions for preference updates
+CREATE OR REPLACE FUNCTION update_user_preferences(
+  user_id UUID,
+  new_preferred_name TEXT DEFAULT NULL,
+  new_preferences JSONB DEFAULT NULL
+)
+RETURNS BOOLEAN
+SECURITY DEFINER
+SET search_path = public
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  UPDATE user_profiles 
+  SET 
+    preferred_name = COALESCE(new_preferred_name, preferred_name),
+    preferences = COALESCE(new_preferences, preferences),
+    updated_at = NOW()
+  WHERE id = user_id;
+  
+  RETURN FOUND;
+END;
+$$;
+
+-- ✅ ALWAYS: Grant proper permissions for authenticated users
+GRANT EXECUTE ON FUNCTION update_user_preferences(UUID, TEXT, JSONB) TO authenticated;
+```
+
+### **Personalization Patterns**
+
+```typescript
+// ✅ ALWAYS: Use preferred name for personalized experience
+const GameScreen = () => {
+  const { user, userProfile } = useAuth();
+  
+  const welcomeMessage = userProfile?.preferredName 
+    ? `Hello ${userProfile.preferredName}! Ready to play?`
+    : `Hello ${user?.email?.split('@')[0] || 'Player'}! Ready to play?`;
+    
+  return (
+    <View style={styles.container}>
+      <Text style={styles.welcome}>{welcomeMessage}</Text>
+      {/* Game content */}
+    </View>
+  );
+};
+
+// ✅ ALWAYS: Provide fallback when preferred name not set
+// ✅ ALWAYS: Use email prefix as default when no preferred name
+```
+
+### **Migration Strategy Patterns**
+
+```typescript
+// ✅ REQUIRED: Safe migration for existing users
+const migrateExistingPreferences = async () => {
+  // Convert existing local preferences to server storage
+  const existingPreferences = {
+    notifications: { email: true, push: false },
+    device: { rememberDevice: false }
+  };
+  
+  await updateUserPreferences(existingPreferences);
+};
+
+// ✅ ALWAYS: Maintain backward compatibility during updates
+// ✅ ALWAYS: Provide default values for missing preferences
+```
+
+### **Testing Patterns for Preferences**
+
+```typescript
+// ✅ REQUIRED: Test preference persistence and merging
+describe('UserPreferences', () => {
+  test('merges preferences correctly without losing existing data', async () => {
+    const existingPreferences = { notifications: { email: true, push: false } };
+    const newPreferences = { device: { rememberDevice: true } };
+    
+    const result = await updateUserPreferences(newPreferences);
+    expect(result.preferences).toEqual({
+      notifications: { email: true, push: false },
+      device: { rememberDevice: true }
+    });
+  });
+
+  test('handles preference update failures gracefully', async () => {
+    mockSupabase.rpc.mockRejectedValue(new Error('Network error'));
+    
+    const result = await updateUserPreferences({ theme: 'dark' });
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('Network error occurred');
+  });
+});
+
+// ✅ ALWAYS: Test both success and failure scenarios
+// ✅ ALWAYS: Test JSONB merging behavior
+// ✅ ALWAYS: Test network error handling
+```
+
+---
+
 ## 🎯 **SUCCESS METRICS**
 
 ### **Code Quality Metrics**
@@ -748,6 +906,98 @@ const showProjectStats = () => {
 - ✅ No console errors or warnings
 - ✅ TypeScript intellisense works correctly
 
+### **Feature Development Workflow (Following Preferred Name Pattern)**
+
+```typescript
+// ✅ PHASE 1: Database Schema Enhancement
+// - Add fields to user_profiles table
+// - Create JSONB indexes for performance
+// - Implement SECURITY DEFINER functions
+// - Test database operations
+
+// ✅ PHASE 2: TypeScript Interface Updates  
+interface User {
+  id: string;
+  email: string;
+  isVerified: boolean;
+  createdAt: Date;
+  lastLoginAt: Date;
+  preferredName?: string;        // NEW FIELD
+  preferences: UserPreferences;  // NEW FIELD
+}
+
+// ✅ PHASE 3: Service Enhancement
+// - Add server preference management methods
+// - Implement proper error handling
+// - Add preference merging logic
+// - Update AuthContext with new methods
+
+// ✅ PHASE 4: UI Implementation
+// - Create new screens with proper validation
+// - Fix existing broken preferences
+// - Add loading states and error handling
+// - Implement personalization features
+
+// ✅ PHASE 5: Testing Implementation
+// - Database operation tests
+// - UI component tests
+// - Integration flow tests
+// - Error scenario tests
+
+// ✅ PHASE 6: Future-Proofing
+// - Reusable preference components
+// - Scalable preference categories
+// - Documentation updates
+// - Migration strategies
+```
+
+### **Critical Fix Requirements**
+
+```typescript
+// ✅ MANDATORY: Fix existing broken preferences during implementation
+// Current broken pattern (NO PERSISTENCE):
+const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+// Fixed pattern (SERVER PERSISTENCE):
+const preferences = userProfile?.preferences || {};
+const isNotificationsEnabled = preferences.notifications?.email ?? true;
+
+const handleNotificationToggle = async (value: boolean) => {
+  const result = await updateUserPreferences({
+    notifications: { ...preferences.notifications, email: value }
+  });
+  
+  if (result.success) {
+    await refreshUserProfile(); // Sync with server
+  }
+};
+
+// ❌ NEVER: Leave existing preferences broken
+// ✅ ALWAYS: Fix persistence issues while adding new features
+```
+
+### **Quality Validation Checklist**
+
+```bash
+# ✅ REQUIRED: Execute after feature implementation
+npm run lint           # Must pass with zero warnings
+npm run typecheck      # Must pass with zero errors
+npm test              # Must achieve >85% pass rate
+npm run ios           # Must launch successfully after clean build
+
+# ✅ REQUIRED: Database validation
+# - Test preference CRUD operations
+# - Verify JSONB merging behavior
+# - Validate migration scripts
+# - Test rollback procedures
+
+# ✅ REQUIRED: User experience validation
+# - Test new user flow (with preferred name setup)
+# - Test existing user flow (preferences work correctly)
+# - Test skip functionality (optional setup)
+# - Test error recovery (network failures)
+```
+
 ---
 
 ## 🔧 **QUICK TROUBLESHOOTING**
@@ -763,6 +1013,8 @@ const showProjectStats = () => {
 | Multiple workflow runs for same commit | Remove duplicate workflow files, ensure unique names |
 | Navigation TypeScript errors | Check navigation type definitions |
 | Test failures | Verify all mocks are configured in jest.setup.js |
+| Broken preferences (no persistence) | Follow preferred-name-and-preferences-implementation-plan.md |
+| JSONB preference merging issues | Test with proper TypeScript interfaces and server functions |
 
 ---
 
@@ -780,9 +1032,11 @@ Following these instructions exactly will produce:
 - ✅ **100% successful CI/CD pipeline** with enterprise-grade practices
 - ✅ **Comprehensive testing infrastructure** with React Navigation support
 - ✅ **Scalable foundation** ready for iOS/Android app store deployment
+- ✅ **Enterprise-grade feature development** following preferred name implementation patterns
+- ✅ **Server-side preference management** with proper persistence and JSONB scalability
 
-**🎯 These patterns have been proven successful in production and guarantee reliable React Native project implementation.**
+**🎯 These patterns have been proven successful in production and guarantee reliable React Native project implementation with advanced user preference capabilities.**
 
 ---
 
-*This document ensures GitHub Copilot follows the exact successful patterns from ReactNativeTest, preventing all known issues and maintaining enterprise-grade code quality. Phase 2 authentication UI implementation is complete with 73.7% test pass rate and production-ready quality standards.*
+*This document ensures GitHub Copilot follows the exact successful patterns from ReactNativeTest, preventing all known issues and maintaining enterprise-grade code quality. Phase 2 authentication UI implementation is complete with 73.7% test pass rate and production-ready quality standards. The preferred name and preferences implementation plan provides a comprehensive foundation for scalable user customization features.*
