@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # iOS Bundle ID and Team Configuration Script
-# Purpose: Automate iOS configuration to prevent TestAppB-style build failures
-# Usage: ./configure-ios.sh ProjectName BundleID [TeamID]
+# Purpose: Interactive iOS configuration to prevent TestAppB-style build failures
+# Usage: ./configure-ios.sh [ProjectName]
 
 set -e
 
@@ -11,20 +11,29 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-PROJECT_NAME="$1"
-BUNDLE_ID="$2"
-TEAM_ID="$3"
+# Auto-detect project name from directory structure
+AUTO_PROJECT_NAME=""
+if [[ -d "ios" ]]; then
+    # Look for main project (not Pods)
+    AUTO_PROJECT_NAME=$(find ios -maxdepth 1 -name "*.xcodeproj" -not -name "Pods.xcodeproj" -type d | head -1 | xargs basename | sed 's/\.xcodeproj$//')
+fi
 
-if [[ -z "$PROJECT_NAME" || -z "$BUNDLE_ID" ]]; then
-    echo -e "${RED}❌ Usage: ./configure-ios.sh ProjectName BundleID [TeamID]${NC}"
-    echo -e "${YELLOW}Example: ./configure-ios.sh NewSchoolConnect com.yourname.newschoolconnect${NC}"
-    echo -e "${YELLOW}Example: ./configure-ios.sh NewSchoolConnect com.yourname.newschoolconnect ABC1234DEF${NC}"
+# Use provided project name or auto-detected name
+PROJECT_NAME="${1:-$AUTO_PROJECT_NAME}"
+
+if [[ -z "$PROJECT_NAME" ]]; then
+    echo -e "${RED}❌ Error: Could not detect project name${NC}"
+    echo -e "${YELLOW}Make sure you're in a React Native project directory with an ios/ folder${NC}"
+    echo -e "${YELLOW}Or run: ./configure-ios.sh YourProjectName${NC}"
     exit 1
 fi
 
-echo -e "${BLUE}🔧 Configuring iOS Bundle ID and Team for $PROJECT_NAME${NC}"
+echo -e "${CYAN}🔧 iOS Configuration Setup for $PROJECT_NAME${NC}"
+echo -e "${BLUE}===============================================${NC}"
+echo ""
 
 # Validate project exists
 PROJECT_FILE="ios/$PROJECT_NAME.xcodeproj/project.pbxproj"
@@ -33,6 +42,37 @@ if [[ ! -f "$PROJECT_FILE" ]]; then
     echo -e "${YELLOW}Make sure you're running this from the project root directory${NC}"
     exit 1
 fi
+
+# Interactive Bundle ID input
+echo -e "${CYAN}📱 Bundle Identifier Setup${NC}"
+echo -e "${YELLOW}A Bundle ID uniquely identifies your app (e.g., com.yourname.projectname)${NC}"
+SUGGESTED_BUNDLE=$(echo "$PROJECT_NAME" | tr '[:upper:]' '[:lower:]')
+echo -e "${BLUE}💡 Suggested format: com.yourname.${SUGGESTED_BUNDLE}${NC}"
+echo ""
+echo -n -e "${CYAN}Enter Bundle ID: ${NC}"
+read BUNDLE_ID
+
+if [[ -z "$BUNDLE_ID" ]]; then
+    echo -e "${RED}❌ Bundle ID cannot be empty${NC}"
+    exit 1
+fi
+
+echo ""
+
+# Interactive Team ID input
+echo -e "${CYAN}👥 Development Team Setup${NC}"
+echo -e "${YELLOW}Your Team ID is required for code signing (10-character alphanumeric)${NC}"
+echo ""
+echo -e "${BLUE}💡 To find your Team ID:${NC}"
+echo -e "${BLUE}   1. Open Xcode → Settings → Accounts${NC}"
+echo -e "${BLUE}   2. Select your Apple ID → View Details${NC}"
+echo -e "${BLUE}   3. Copy the Team ID (e.g., ABC1234DEF)${NC}"
+echo ""
+echo -n -e "${CYAN}Enter Team ID (or press Enter to skip): ${NC}"
+read TEAM_ID
+
+echo ""
+echo -e "${BLUE}🔧 Starting Configuration...${NC}"
 
 # Backup original file
 cp "$PROJECT_FILE" "$PROJECT_FILE.backup"
@@ -47,8 +87,7 @@ if [[ ! -z "$TEAM_ID" ]]; then
     echo -e "${YELLOW}👥 Setting Development Team to: $TEAM_ID${NC}"
     sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" "$PROJECT_FILE"
 else
-    echo -e "${YELLOW}⚠️  No Team ID provided - you'll need to set this in Xcode or run:${NC}"
-    echo -e "${BLUE}   ./configure-ios.sh $PROJECT_NAME $BUNDLE_ID YOUR_TEAM_ID${NC}"
+    echo -e "${YELLOW}⚠️  Team ID skipped - you can set this later in Xcode${NC}"
 fi
 
 # Validate changes
@@ -71,17 +110,24 @@ fi
 
 echo ""
 echo -e "${GREEN}🎉 iOS Configuration Complete!${NC}"
-echo -e "${BLUE}Bundle ID: $BUNDLE_ID${NC}"
+echo -e "${CYAN}===============================================${NC}"
+echo -e "${BLUE}📱 Bundle ID: $BUNDLE_ID${NC}"
 if [[ ! -z "$TEAM_ID" ]]; then
-    echo -e "${BLUE}Team ID: $TEAM_ID${NC}"
+    echo -e "${BLUE}👥 Team ID: $TEAM_ID${NC}"
+    echo ""
     echo -e "${GREEN}✅ Ready to build! Run: npm run ios${NC}"
 else
-    echo -e "${YELLOW}⚠️  Still need to set Team ID in Xcode or via CLI${NC}"
+    echo -e "${YELLOW}👥 Team ID: Not set (can be added later)${NC}"
+    echo ""
+    echo -e "${YELLOW}📋 Next Steps:${NC}"
+    echo -e "${BLUE}   1. Run this script again to add Team ID${NC}"
+    echo -e "${BLUE}   2. Or set Team ID manually in Xcode${NC}"
+    echo -e "${BLUE}   3. Then run: npm run ios${NC}"
 fi
 
 echo ""
-echo -e "${YELLOW}💡 To find your Team ID:${NC}"
-echo -e "${BLUE}   1. Open Xcode → Preferences → Accounts${NC}"
+echo -e "${CYAN}💡 Need your Team ID? Here's how to find it:${NC}"
+echo -e "${BLUE}   1. Open Xcode → Settings → Accounts${NC}"
 echo -e "${BLUE}   2. Select your Apple ID → View Details${NC}"
-echo -e "${BLUE}   3. Copy the Team ID (e.g., ABC1234DEF)${NC}"
-echo -e "${BLUE}   4. Run: ./configure-ios.sh $PROJECT_NAME $BUNDLE_ID YOUR_TEAM_ID${NC}"
+echo -e "${BLUE}   3. Copy the 10-character Team ID (e.g., ABC1234DEF)${NC}"
+echo -e "${BLUE}   4. Run this script again and enter it when prompted${NC}"
