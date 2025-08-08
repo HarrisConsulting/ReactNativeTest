@@ -85,7 +85,13 @@ sed -i '' "s/PRODUCT_BUNDLE_IDENTIFIER = .*/PRODUCT_BUNDLE_IDENTIFIER = $BUNDLE_
 # Update Team ID if provided
 if [[ ! -z "$TEAM_ID" ]]; then
     echo -e "${YELLOW}👥 Setting Development Team to: $TEAM_ID${NC}"
-    sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" "$PROJECT_FILE"
+    # Check if DEVELOPMENT_TEAM already exists
+    if grep -q "DEVELOPMENT_TEAM" "$PROJECT_FILE"; then
+        sed -i '' "s/DEVELOPMENT_TEAM = .*/DEVELOPMENT_TEAM = $TEAM_ID;/g" "$PROJECT_FILE"
+    else
+        # Add DEVELOPMENT_TEAM after PRODUCT_BUNDLE_IDENTIFIER
+        sed -i '' "s/\(PRODUCT_BUNDLE_IDENTIFIER = [^;]*;\)/\1\n\t\t\t\tDEVELOPMENT_TEAM = $TEAM_ID;/" "$PROJECT_FILE"
+    fi
 else
     echo -e "${YELLOW}⚠️  Team ID skipped - you can set this later in Xcode${NC}"
 fi
