@@ -231,6 +231,7 @@ EOL
 echo "  Adding enhanced safety scripts..."
 npm pkg set scripts.start-safe="./start-metro.sh"
 npm pkg set scripts.ios-safe="npm run verify-project && npx react-native run-ios"
+npm pkg set scripts.ios-simulator="npm run verify-project && npx react-native run-ios --simulator=\"iPhone 16 Plus\""
 npm pkg set scripts.verify-project="pwd && ls -la index.js package.json ios/"
 npm pkg set scripts.clean="npx react-native clean"
 
@@ -1152,7 +1153,10 @@ cd ios && pod install && cd ..
 # Start Metro bundler (enhanced safety)
 ./start-metro.sh
 
-# Run on iOS (in new terminal)
+# Run on iOS Simulator (Recommended - Fast & Reliable)
+npm run ios-simulator
+
+# Run on iOS Device (Requires Team ID configuration)
 npm run ios-safe
 
 # Run on Android
@@ -1208,7 +1212,8 @@ This project implements proven patterns from ReactNativeTest:
 ## 📋 Available Scripts
 
 - \`npm run start-safe\` - Safe Metro bundler startup
-- \`npm run ios-safe\` - iOS build with safety checks
+- \`npm run ios-simulator\` - iOS Simulator build (Recommended)
+- \`npm run ios-safe\` - iOS device build with safety checks
 - \`npm run verify-project\` - Project structure validation
 - \`npm run clean\` - React Native cache cleaning
 - \`npm run lint\` - ESLint code checking
@@ -1225,8 +1230,9 @@ npm test
 
 1. **Metro Safety**: Always use \`./start-metro.sh\` for bundler startup
 2. **Project Verification**: Run \`npm run verify-project\` before builds
-3. **iOS Development**: Use \`npm run ios-safe\` for reliable builds
-4. **Code Quality**: Maintain zero warnings with \`npm run lint\`
+3. **iOS Development**: Use \`npm run ios-simulator\` for fast testing
+4. **Physical Device**: Use \`npm run ios-safe\` for device builds (requires Team ID)
+5. **Code Quality**: Maintain zero warnings with \`npm run lint\`
 
 ## 📚 Next Steps
 
@@ -1301,7 +1307,9 @@ echo ""
 echo -e "${BLUE}THEN - Start Development:${NC}"
 echo "  ./start-metro.sh"
 echo "  # In new terminal:"
-echo "  npm run ios-safe"
+echo "  npm run ios-simulator    # Recommended: Fast simulator testing"
+echo "  # OR for physical device:"
+echo "  npm run ios-safe         # Requires Team ID configuration"
 echo ""
 echo -e "${YELLOW}📱 Next Steps:${NC}"
 echo "  1. Test the basic app with iOS simulator"
