@@ -204,6 +204,11 @@ echo "  Creating iOS configuration script..."
 cp "$EXEMPLAR_PROJECT/scripts/configure-ios.sh" .
 chmod +x configure-ios.sh
 
+# Copy iOS cleanup script
+echo "  Creating iOS cleanup script..."
+cp "$EXEMPLAR_PROJECT/scripts/cleanup-ios-setup.sh" .
+chmod +x cleanup-ios-setup.sh
+
 # Copy jest configuration files
 echo "  Copying testing configuration..."
 cp "$EXEMPLAR_PROJECT/jest.config.js" .
@@ -1219,6 +1224,11 @@ This project implements proven patterns from ReactNativeTest:
 - \`npm run lint\` - ESLint code checking
 - \`npm run test\` - Jest test runner
 
+## 🧹 Cleanup Tools
+
+- \`./configure-ios.sh\` - Interactive iOS Bundle ID and Team ID setup
+- \`./cleanup-ios-setup.sh\` - Remove setup files after successful configuration
+
 ## 🧪 Testing
 
 Run tests with:
@@ -1317,5 +1327,6 @@ echo "  2. Customize screens for your specific needs"
 echo "  3. Implement authentication using ReactNativeTest patterns"
 echo "  4. Add your ${CONTENT_TYPE} functionality"
 echo "  5. Set up CI/CD pipeline"
+echo "  6. Clean up setup files: ./cleanup-ios-setup.sh (after successful builds)"
 echo ""
 echo -e "${GREEN}✅ Success! Your production-ready React Native app is ready to go!${NC}"
